@@ -1,7 +1,7 @@
 import { h, toast, confirmBox } from "../dom.js";
 import { shell } from "../shell.js";
 import { session, update } from "../session.js";
-import { MODELS, connectionInfo, currentModelId, forgetModel, formatBytes, loadModel, modelCached, unloadModel, webgpuStatus } from "../ai.js";
+import { MODELS, connectionInfo, crashNote, currentModelId, deviceHints, forgetModel, formatBytes, loadModel, modelCached, offeredModels, prefersSmallModel, unloadModel, webgpuStatus } from "../ai.js";
 
 export function mountModel(root) {
   const view = shell(root, { title: "On-device AI", tab: "more", back: "/settings" });
@@ -16,6 +16,11 @@ async function paint(host) {
     h("h1", { class: "display small" }, ["Private ", h("em", {}, "AI")]),
     h("p", { class: "lede" }, "The counselor and tutors run an open-source model on this device. Your questions are not sent to Arahasoft or to a chat service. After the download, it works offline."),
   );
+  const note = crashNote();
+  if (note) host.append(h("section", { class: "card notice", "data-testid": "model-crash" }, [h("p", {}, note)]));
+  if (prefersSmallModel(deviceHints())) {
+    host.append(h("p", { class: "hint" }, "This phone uses the smaller model. The 1.7 GB model is for a computer."));
+  }
   const gpu = await webgpuStatus();
   if (!gpu.ok) {
     host.append(h("section", { class: "card notice", "data-testid": "webgpu-missing" }, [
@@ -60,12 +65,13 @@ async function paint(host) {
   ]);
   host.append(progress);
 
-  for (const model of MODELS) {
+  for (const model of offeredModels()) {
     const cached = await modelCached(model.id).catch(() => false);
     const selected = session.data.settings.modelId === model.id;
     const card = h("article", { class: "card stack model-card" }, [
       h("h2", {}, model.name),
-      selected ? h("span", { class: "chip", style: { "--accent": "#F2B33D" } }, "Selected") : null,
+      model.recommended ? h("span", { class: "chip", style: { "--accent": "#F2B33D" } }, "Recommended") : null,
+      selected ? h("span", { class: "chip", style: { "--accent": "#1B5CEB" } }, "Selected") : null,
       h("p", {}, model.blurb),
       h("p", { class: "hint" }, `${formatBytes(model.bytes)} download · about ${(model.vramMB / 1000).toFixed(1)} GB GPU memory${cached ? " · saved on this device" : ""}`),
       h("button", {
@@ -103,7 +109,12 @@ async function begin(model, progress, redraw) {
       return;
     }
   }
-  update((data) => { data.settings.modelId = model.id; });
+  const previous = session.data.settings.modelId;
+  update((data) => {
+    data.settings.modelId = model.id;
+    data.settings.modelPick = "user";
+  });
+  if (previous && previous !== model.id) forgetModel(previous).catch(() => {});
   progress.hidden = false;
   const bar = progress.querySelector(".meter");
   const label = progress.querySelector("[data-testid=model-status]");

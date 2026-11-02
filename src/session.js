@@ -2,6 +2,9 @@ import { ITERATIONS, b64ToBytes, bytesToB64, decryptJSON, deriveSecrets, encrypt
 import { emptyData, normalizeData, pushActivity } from "./data.js";
 import * as db from "./db.js";
 import { getEntitlement } from "./entitlement.js";
+import { fitModelChoice } from "./ai.js";
+
+const SESSION_KEY = "ac-session";
 
 export const session = {
   id: null,
@@ -25,7 +28,16 @@ export function normName(username) {
   return String(username || "").trim().toLowerCase();
 }
 
-async function enter(record, key, data) {
+function remember(raw) {
+  if (!raw || !session.id) return;
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+    id: session.id,
+    username: session.username,
+    key: bytesToB64(raw),
+  }));
+}
+
+async function enter(record, key, data, raw, { log = true } = {}) {
   session.id = record.id;
   session.username = record.username;
   session.key = key;
@@ -33,17 +45,43 @@ async function enter(record, key, data) {
   session.parentUntil = 0;
   session.pinFails = 0;
   session.pinWait = 0;
+  const fitted = fitModelChoice(data.settings);
+  if (fitted !== data.settings.modelId) data.settings.modelId = fitted;
   session.entitlement = await getEntitlement({ id: record.id, username: record.username });
   if (!session.entitlement?.ok) {
     clearSession();
     throw new Error("This profile isn't unlocked for ARAHA Counselor.");
   }
-  pushActivity(data, "session", "Opened ARAHA Counselor");
+  remember(raw);
+  if (log) pushActivity(data, "session", "Opened ARAHA Counselor");
   dirty = true;
   await flush();
 }
 
+export async function restoreSession() {
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch { return false; }
+  if (!saved?.id || !saved?.key) return false;
+  const record = await db.get(saved.id);
+  if (!record?.cipher) {
+    sessionStorage.removeItem(SESSION_KEY);
+    return false;
+  }
+  try {
+    const raw = b64ToBytes(saved.key);
+    const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+    const data = normalizeData(await decryptJSON(key, record.cipher));
+    await enter(record, key, data, raw, { log: false });
+    return true;
+  } catch {
+    sessionStorage.removeItem(SESSION_KEY);
+    clearSession();
+    return false;
+  }
+}
+
 function clearSession() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
   session.id = null;
   session.username = "";
   session.key = null;
@@ -62,7 +100,7 @@ export async function signUp(username, password) {
   if (password.length < 8) throw new Error("Use at least 8 characters for the password.");
   if (await db.getByName(usernameKey)) throw new Error("That name is already used on this device.");
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const { key, verifier } = await deriveSecrets(password, salt, ITERATIONS);
+  const { key, raw, verifier } = await deriveSecrets(password, salt, ITERATIONS);
   const data = emptyData();
   const cipher = await encryptJSON(key, data);
   const record = {
@@ -75,14 +113,14 @@ export async function signUp(username, password) {
     updatedAt: data.updatedAt,
   };
   await db.put(record);
-  await enter(record, key, data);
+  await enter(record, key, data, raw);
 }
 
 export async function signIn(username, password) {
   const record = await db.getByName(normName(username));
   if (!record) throw new Error("No profile on this device uses that name.");
   const iterations = Number(record.kdf?.iterations) || ITERATIONS;
-  const { key, verifier } = await deriveSecrets(password, b64ToBytes(record.kdf.salt), iterations);
+  const { key, raw, verifier } = await deriveSecrets(password, b64ToBytes(record.kdf.salt), iterations);
   if (!timingEqual(verifier, b64ToBytes(record.kdf.verifier))) {
     throw new Error("That password doesn't match. It can't be reset, because the data is locked on this device.");
   }
@@ -92,7 +130,7 @@ export async function signIn(username, password) {
   } catch {
     throw new Error("The saved data couldn't be unlocked.");
   }
-  await enter(record, key, data);
+  await enter(record, key, data, raw);
 }
 
 export async function createFromBackup(username, password, data) {
@@ -104,7 +142,7 @@ export async function createFromBackup(username, password, data) {
     throw new Error("That name already exists here. Sign in, then import the backup from More.");
   }
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const { key, verifier } = await deriveSecrets(password, salt, ITERATIONS);
+  const { key, raw, verifier } = await deriveSecrets(password, salt, ITERATIONS);
   const normalized = normalizeData(data);
   normalized.updatedAt = new Date().toISOString();
   const cipher = await encryptJSON(key, normalized);
@@ -118,7 +156,7 @@ export async function createFromBackup(username, password, data) {
     updatedAt: normalized.updatedAt,
   };
   await db.put(record);
-  await enter(record, key, normalized);
+  await enter(record, key, normalized, raw);
 }
 
 export async function signOut() {

@@ -7,7 +7,7 @@ import { statusLabel } from "../format.js";
 import { essayStatus } from "../summary.js";
 import { essaySystem } from "../prompts.js";
 import { renderRich } from "../rich.js";
-import { complete, currentModelId, loadModel, modelCached } from "../ai.js";
+import { complete, currentModelId, fitModelChoice, loadModel, modelCached } from "../ai.js";
 
 export function mountEssayList(root) {
   const view = shell(root, { title: "Essays", tab: "essays" });
@@ -133,7 +133,7 @@ async function runCoach(id, button, showFeedback) {
   const previous = button.textContent;
   button.textContent = "Coaching on this device…";
   try {
-    const modelId = session.data.settings.modelId;
+    const modelId = fitModelChoice(session.data.settings);
     if (currentModelId() !== modelId) {
       if (!await modelCached(modelId)) {
         toast("Download the on-device model first. You can keep drafting without it.");

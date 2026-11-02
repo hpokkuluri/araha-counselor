@@ -1,8 +1,10 @@
 import "katex/dist/katex.min.css";
 import "./styles.css";
 import { startRouter } from "./router.js";
-import { flush, signedIn } from "./session.js";
+import { flush, restoreSession, signedIn } from "./session.js";
 import { syncThemeColor, watchSystemTheme } from "./theme.js";
+import { noteInterruptedLoad } from "./ai.js";
+import { toast } from "./dom.js";
 
 const splash = document.getElementById("splash");
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -24,7 +26,11 @@ document.querySelector("[data-testid=skip-splash]")?.addEventListener("click", c
 window.setTimeout(closeSplash, reduced ? 280 : 3300);
 
 watchSystemTheme();
-startRouter();
+const interrupted = noteInterruptedLoad();
+restoreSession().finally(() => {
+  startRouter();
+  if (interrupted) toast(interrupted);
+});
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden" && signedIn()) flush();

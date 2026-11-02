@@ -4,7 +4,7 @@ import { renderRich } from "./rich.js";
 import { uid, pushActivity } from "./data.js";
 import { session, update } from "./session.js";
 import { navigate } from "./nav.js";
-import { complete, currentModelId, loadModel, modelCached, stopGeneration } from "./ai.js";
+import { complete, currentModelId, fitModelChoice, loadModel, modelCached, stopGeneration } from "./ai.js";
 
 export function mountThread(parent, spec) {
   const log = h("div", { class: "chat", "data-testid": "chat-log" });
@@ -56,7 +56,7 @@ export function mountThread(parent, spec) {
     const pending = h("div", { class: "msg ai" }, "Getting the on-device model ready…");
     log.append(pending);
     try {
-      const modelId = session.data.settings.modelId;
+      const modelId = fitModelChoice(session.data.settings);
       if (currentModelId() !== modelId) {
         const cached = await modelCached(modelId);
         if (!cached) {

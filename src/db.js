@@ -38,6 +38,18 @@ export async function list() {
     .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
 }
 
+export async function get(id) {
+  const db = await open();
+  const tx = db.transaction(STORE, "readonly");
+  const req = tx.objectStore(STORE).get(id);
+  const row = await new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+  db.close();
+  return row;
+}
+
 export async function getByName(usernameKey) {
   const db = await open();
   const tx = db.transaction(STORE, "readonly");

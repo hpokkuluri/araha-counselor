@@ -24,7 +24,7 @@ export const ESSAY_KINDS = [
   ["scholarship", "Scholarship"],
   ["other", "Other"],
 ];
-export const RECOMMENDED_MODEL = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
+export const RECOMMENDED_MODEL = "";
 
 const LIMITS = { short: 160, mid: 400, long: 8000, list: 80, messages: 80 };
 
@@ -48,7 +48,7 @@ export function emptyData() {
     activity: [],
     shareNote: "",
     parentPin: null,
-    settings: { wifiOnly: true, modelId: RECOMMENDED_MODEL },
+    settings: { wifiOnly: true, modelId: "", modelPick: "auto" },
     createdAt: now,
     updatedAt: now,
   };
@@ -191,7 +191,8 @@ export function normalizeData(raw) {
     } : null,
     settings: {
       wifiOnly: settings.wifiOnly !== false,
-      modelId: str(settings.modelId, 120) || RECOMMENDED_MODEL,
+      modelId: str(settings.modelId, 120),
+      modelPick: settings.modelPick === "user" ? "user" : "auto",
     },
     createdAt: str(d.createdAt, 40) || base.createdAt,
     updatedAt: str(d.updatedAt, 40) || base.updatedAt,

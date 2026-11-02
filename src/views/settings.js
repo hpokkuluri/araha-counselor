@@ -1,10 +1,11 @@
 import { h, toast, confirmBox, downloadBlob } from "../dom.js";
 import { shell } from "../shell.js";
 import { navigate } from "../nav.js";
-import { session, signOut, deleteCurrent, replaceData } from "../session.js";
+import { session, signOut, deleteCurrent, replaceData, update } from "../session.js";
 import { exportPayload, parseBackup } from "../data.js";
 import { applyTheme, choiceLabel, getChoice } from "../theme.js";
 import { brandName } from "../brand.js";
+import { fitModelChoice, forgetModel, offeredModels } from "../ai.js";
 
 export function mountSettings(root) {
   const view = shell(root, { title: "More", tab: "more" });
@@ -24,6 +25,7 @@ export function mountSettings(root) {
     link("Parent view", "PIN, summary, email, PDF", "/parent"),
     link("Progress report", "Email parents and share a PDF", "/progress"),
     link("On-device AI", "Download the private model", "/model"),
+    modelSetting(),
     h("section", { class: "card stack" }, [
       h("h2", {}, "Backup"),
       h("p", { class: "hint" }, "The file is readable JSON. It is how your data moves to a new phone. Keep it private. The copy inside the app stays encrypted."),
@@ -52,6 +54,33 @@ export function mountSettings(root) {
     ]),
   );
   return { unmount: view.destroy };
+}
+
+function modelSetting() {
+  const models = offeredModels();
+  const current = fitModelChoice(session.data.settings);
+  const picker = h("select", {
+    class: "txt",
+    "data-testid": "model-choice",
+    onChange: async (event) => {
+      const next = event.target.value;
+      const previous = session.data.settings.modelId;
+      update((data) => {
+        data.settings.modelId = next;
+        data.settings.modelPick = "user";
+      });
+      if (previous && previous !== next) {
+        try { await forgetModel(previous); } catch { /* cache may already be gone */ }
+        toast("Switched model and removed the previous download.");
+      }
+    },
+  }, models.map((model) => h("option", { value: model.id }, model.recommended ? `${model.name} (recommended)` : model.name)));
+  picker.value = models.some((model) => model.id === current) ? current : (models[0]?.id || "");
+  return h("section", { class: "card stack" }, [
+    h("h2", {}, "Model"),
+    h("p", { class: "hint" }, "Phones use the smaller model. Changing it deletes the previous download so it doesn't fill this device."),
+    picker,
+  ]);
 }
 
 function option(value, label, current) {

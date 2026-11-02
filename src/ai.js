@@ -1,25 +1,118 @@
+export const LARGE_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
+export const SMALL_ID = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
+const LOAD_FLAG = "ac-model-load";
+const TOO_BIG_KEY = "ac-model-too-big";
+
 export const MODELS = [
   {
-    id: "Qwen2.5-3B-Instruct-q4f16_1-MLC",
+    id: LARGE_ID,
     name: "Qwen 2.5 3B Instruct",
     bytes: 1_736_187_904,
     vramMB: 2505,
-    blurb: "Recommended. A stronger counselor and tutor. About 1.7 GB to download and about 2.5 GB of GPU memory.",
+    blurb: "Best on a computer. About 1.7 GB to download and about 2.5 GB of GPU memory.",
   },
   {
-    id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+    id: SMALL_ID,
     name: "Llama 3.2 1B Instruct",
     bytes: 695_242_752,
     vramMB: 879,
-    blurb: "Smaller fallback for a phone with less memory. About 700 MB to download and about 0.9 GB of GPU memory. Answers are shorter and less detailed.",
+    blurb: "The phone model. About 700 MB to download and about 0.9 GB of GPU memory.",
   },
 ];
+
+let crashNoteText = "";
+
+export function prefersSmallModel(hints = {}) {
+  if (hints.ios || hints.android || hints.phone) return true;
+  if (typeof hints.deviceMemory === "number" && hints.deviceMemory > 0 && hints.deviceMemory <= 4) return true;
+  if (hints.narrow) return true;
+  if (typeof hints.maxBufferSize === "number" && hints.maxBufferSize < 1_500_000_000) return true;
+  if (typeof hints.maxStorageBufferBindingSize === "number" && hints.maxStorageBufferBindingSize < 1_073_741_824) return true;
+  return false;
+}
+
+export function chooseModelId({ savedId = "", userPick = false, tooBig = [], smallDevice = false } = {}) {
+  const blocked = new Set(tooBig);
+  if (userPick && savedId && !blocked.has(savedId)) return savedId;
+  if (smallDevice || blocked.has(LARGE_ID)) return SMALL_ID;
+  if (savedId && !blocked.has(savedId)) return savedId;
+  return LARGE_ID;
+}
+
+export function deviceHints(nav = globalThis.navigator, win = globalThis) {
+  const ua = nav?.userAgent || "";
+  const ios = /iPad|iPhone|iPod/.test(ua) || (nav?.platform === "MacIntel" && (nav?.maxTouchPoints || 0) > 1);
+  const android = /Android/i.test(ua);
+  const narrow = Boolean(win?.matchMedia?.("(max-width: 820px)")?.matches);
+  const coarse = Boolean(win?.matchMedia?.("(pointer: coarse)")?.matches);
+  return {
+    ios,
+    android,
+    phone: ios || android || (narrow && coarse),
+    narrow,
+    deviceMemory: Number(nav?.deviceMemory) || 0,
+    maxBufferSize: gpuLimits?.maxBufferSize,
+    maxStorageBufferBindingSize: gpuLimits?.maxStorageBufferBindingSize,
+  };
+}
+
+function storage() {
+  try { return localStorage; } catch { return null; }
+}
+
+export function readTooBig(store = storage()) {
+  if (!store) return [];
+  try { return JSON.parse(store.getItem(TOO_BIG_KEY) || "[]").filter((id) => typeof id === "string"); }
+  catch { return []; }
+}
+
+export function noteInterruptedLoad(store = storage()) {
+  if (!store) return "";
+  const id = store.getItem(LOAD_FLAG);
+  if (!id) return "";
+  store.removeItem(LOAD_FLAG);
+  const tooBig = readTooBig(store);
+  if (!tooBig.includes(id)) {
+    tooBig.push(id);
+    store.setItem(TOO_BIG_KEY, JSON.stringify(tooBig));
+  }
+  const name = MODELS.find((model) => model.id === id)?.name || "That model";
+  crashNoteText = `${name} was too big for this device, so the page reloaded. ARAHA switched to the smaller model.`;
+  return crashNoteText;
+}
+
+export function crashNote() {
+  return crashNoteText;
+}
+
+export function fitModelChoice(settings = {}) {
+  return chooseModelId({
+    savedId: settings.modelId || "",
+    userPick: settings.modelPick === "user",
+    tooBig: readTooBig(),
+    smallDevice: prefersSmallModel(deviceHints()),
+  });
+}
+
+export function offeredModels() {
+  const small = prefersSmallModel(deviceHints());
+  const blocked = new Set(readTooBig());
+  return MODELS.filter((model) => {
+    if (blocked.has(model.id)) return false;
+    if (small && model.id === LARGE_ID) return false;
+    return true;
+  }).map((model) => ({
+    ...model,
+    recommended: model.id === (small ? SMALL_ID : LARGE_ID),
+  }));
+}
 
 let webllmPromise = null;
 let engine = null;
 let worker = null;
 let currentId = "";
 let loading = null;
+let gpuLimits = null;
 
 function lib() {
   if (!webllmPromise) webllmPromise = import("@mlc-ai/web-llm");
@@ -42,6 +135,7 @@ export async function webgpuStatus() {
   try {
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) return { ok: false, reason: "WebGPU is turned on, but this device didn't provide a graphics adapter." };
+    gpuLimits = adapter.limits || null;
     return { ok: true, reason: "" };
   } catch (error) {
     return { ok: false, reason: error?.message || "WebGPU couldn't start on this device." };
@@ -85,6 +179,8 @@ export function loadModel(modelId, onProgress) {
 }
 
 async function startLoad(modelId, onProgress) {
+  const store = storage();
+  store?.setItem(LOAD_FLAG, modelId);
   await unloadModel();
   const { CreateWebWorkerMLCEngine, CreateMLCEngine } = await lib();
   const config = {
@@ -109,10 +205,12 @@ async function startLoad(modelId, onProgress) {
       engine = await CreateMLCEngine(modelId, config);
     } catch (fallback) {
       engine = null;
+      store?.removeItem(LOAD_FLAG);
       throw fallback || error;
     }
   }
   currentId = modelId;
+  store?.removeItem(LOAD_FLAG);
   return engine;
 }
 

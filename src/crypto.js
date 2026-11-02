@@ -1,4 +1,4 @@
-/** Password-derived AES-GCM. The key never leaves this device and is not stored. */
+/** Password-derived AES-GCM. The password is never stored. */
 export const ITERATIONS = 150_000;
 
 export function bytesToB64(bytes) {
@@ -34,8 +34,9 @@ export async function deriveSecrets(password, salt, iterations = ITERATIONS) {
     baseKey,
     512,
   ));
-  const key = await crypto.subtle.importKey("raw", bits.slice(0, 32), "AES-GCM", false, ["encrypt", "decrypt"]);
-  return { key, verifier: bits.slice(32, 64) };
+  const raw = bits.slice(0, 32);
+  const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  return { key, raw, verifier: bits.slice(32, 64) };
 }
 
 export async function encryptJSON(key, value) {

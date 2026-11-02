@@ -6,6 +6,7 @@ import { buildMailto, emailSubject, essayStatus, parentEmails, progressSummary }
 import { resolveTheme } from "../src/theme.js";
 import { dueLabel } from "../src/format.js";
 import { buildPdf } from "../src/pdf.js";
+import { LARGE_ID, SMALL_ID, chooseModelId, noteInterruptedLoad, prefersSmallModel } from "../src/ai.js";
 
 test("password round-trip locks the profile", async () => {
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -85,4 +86,33 @@ test("pdf is generated on device without a network call", async () => {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   assert.equal(String.fromCharCode(...bytes.slice(0, 4)), "%PDF");
   assert.match(filename, /alex-rivera/);
+});
+
+test("phones and low memory default to the small model", () => {
+  assert.equal(prefersSmallModel({ ios: true }), true);
+  assert.equal(prefersSmallModel({ android: true }), true);
+  assert.equal(prefersSmallModel({ phone: true }), true);
+  assert.equal(prefersSmallModel({ deviceMemory: 4 }), true);
+  assert.equal(prefersSmallModel({ narrow: true }), true);
+  assert.equal(prefersSmallModel({ maxBufferSize: 256 * 1024 * 1024 }), true);
+  assert.equal(prefersSmallModel({ maxStorageBufferBindingSize: 512 * 1024 * 1024 }), true);
+  assert.equal(prefersSmallModel({}), false);
+  assert.equal(chooseModelId({ savedId: LARGE_ID, smallDevice: true }), SMALL_ID);
+  assert.equal(chooseModelId({ savedId: LARGE_ID, userPick: true, smallDevice: true }), LARGE_ID);
+  assert.equal(chooseModelId({ smallDevice: false }), LARGE_ID);
+});
+
+test("a killed model load is marked too big and not retried", () => {
+  const store = new Map();
+  const mem = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, value),
+    removeItem: (key) => store.delete(key),
+  };
+  mem.setItem("ac-model-load", LARGE_ID);
+  const note = noteInterruptedLoad(mem);
+  assert.match(note, /smaller model/);
+  assert.equal(mem.getItem("ac-model-load"), null);
+  const tooBig = JSON.parse(mem.getItem("ac-model-too-big"));
+  assert.equal(chooseModelId({ savedId: LARGE_ID, userPick: true, tooBig, smallDevice: false }), SMALL_ID);
 });
