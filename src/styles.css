@@ -154,7 +154,16 @@ h1, h2, h3, p { margin: 0; }
   font-weight: 800; padding: 8px 8px 8px 0; border-radius: 12px;
 }
 .brand-lockup { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
-.brand-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; gap: 1px; }
+.brand-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; gap: 2px; }
+/* Interview Edge welcome brand row. */
+.wl-brand { display: flex; align-items: center; gap: 12px; }
+.wl-brand svg { width: 56px; height: 56px; }
+.wl-brand sup { font-size: .6em; letter-spacing: 0; margin-left: -.2em; font-weight: 600; }
+.wl-brand b { display: block; font-family: Manrope, sans-serif; font-weight: 800; letter-spacing: .32em; font-size: .95rem; color: #fff; }
+[data-theme="light"] .bar .wl-brand b { color: #0E1B3D; }
+[data-theme="light"] .bar .wl-brand .mark-t { fill: #0E1B3D; }
+.auth-hero .wl-brand b { color: #fff; }
+.auth-hero .wl-brand .mark-t { fill: #fff; }
 .brand-lockup small { color: var(--text-3); letter-spacing: .14em; text-transform: uppercase; font-size: .68rem; font-weight: 700; font-family: var(--sans); }
 /* ARAHA uses the ARAHASOFT wordmark: Manrope 800 and its resting tracking (.42em). */
 .brand-name { display: inline-flex; align-items: baseline; gap: .32em; line-height: 1; white-space: nowrap; max-width: 100%; }
@@ -174,13 +183,7 @@ h1, h2, h3, p { margin: 0; }
 .on-dark .brand-araha,
 .auth-hero .brand-araha,
 #splash .brand-araha { color: #fff; }
-.brand-mark {
-  width: 42px; height: 42px; border-radius: 12px;
-  background: var(--mark-bg);
-  border: 1px solid var(--card-border);
-  display: grid; place-items: center; flex-shrink: 0;
-}
-.logo { width: 32px; height: 32px; display: block; }
+.logo { display: block; }
 .logo .mark-h { fill: none; stroke: var(--red); stroke-width: 2; }
 .logo .mark-t { fill: #fff; font-family: Manrope, sans-serif; font-weight: 800; text-anchor: middle; }
 .icon-btn, .round {
@@ -358,6 +361,14 @@ textarea.txt { resize: vertical; min-height: 88px; }
 .plain { margin: 8px 0 0; padding-left: 18px; }
 .plain li { margin: 4px 0; }
 .about p + p { margin-top: 8px; }
+.update-banner {
+  position: fixed; z-index: 40; top: calc(var(--safe-t) + 8px); left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; max-width: calc(100% - 24px);
+  padding: 8px 8px 8px 14px; border-radius: 999px;
+  background: var(--navy); color: #fff; border: 1px solid rgba(255,255,255,.18);
+  font-size: .85rem; font-weight: 700; box-shadow: var(--shadow);
+}
+.update-banner button { padding: 8px 12px; border-radius: 999px; font-size: .82rem; }
 .offline {
   background: var(--gold); color: var(--navy); text-align: center; font-size: .8rem; font-weight: 800;
   padding: 6px 10px;

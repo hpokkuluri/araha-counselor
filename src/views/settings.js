@@ -5,6 +5,7 @@ import { session, signOut, deleteCurrent, replaceData, update } from "../session
 import { exportPayload, parseBackup } from "../data.js";
 import { applyTheme, choiceLabel, getChoice } from "../theme.js";
 import { brandName } from "../brand.js";
+import { checkForUpdates, versionLine } from "../updates.js";
 import { fitModelChoice, forgetModel, offeredModels } from "../ai.js";
 
 export function mountSettings(root) {
@@ -46,6 +47,19 @@ export function mountSettings(root) {
         navigate("/login");
       },
     }, "Delete profile"),
+    h("section", { class: "card stack" }, [
+      h("h2", {}, "App"),
+      h("button", {
+        type: "button",
+        class: "btn ghost",
+        "data-testid": "check-updates",
+        onClick: async () => {
+          const result = await checkForUpdates();
+          if (result.message) toast(result.message);
+        },
+      }, "Check for updates"),
+      h("p", { class: "hint", "data-testid": "app-version" }, versionLine()),
+    ]),
     h("section", { class: "card about stack" }, [
       brandName("md"),
       h("p", {}, "Version 1 · Arahasoft LLC"),

@@ -1,11 +1,10 @@
 import { h, field, txt, toast } from "../dom.js";
-import { logo } from "../logo.js";
 import { createFromBackup, listAccounts, normName, signIn, signUp } from "../session.js";
 import { parseBackup } from "../data.js";
 import { navigate } from "../nav.js";
 import { themeButton } from "../theme.js";
 import { icon } from "../icons.js";
-import { brandName } from "../brand.js";
+import { brandName, companyRow } from "../brand.js";
 
 export async function mountAuth(root, { next = "/home" } = {}) {
   const accounts = await listAccounts().catch(() => []);
@@ -83,8 +82,7 @@ export async function mountAuth(root, { next = "/home" } = {}) {
     page.replaceChildren(
       h("div", { class: "auth-tools" }, themeButton()),
       h("section", { class: "auth-hero" }, [
-        h("div", { class: "brand-mark" }, logo()),
-        h("div", { class: "wordmark" }, ["ARAHASOFT", h("sup", {}, "™")]),
+        companyRow(),
         brandName("lg"),
         h("p", { class: "tag" }, "A private counselor for high school. Your profile, plans, and chats stay on this device."),
       ]),

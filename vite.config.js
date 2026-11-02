@@ -5,11 +5,17 @@ import { VitePWA } from "vite-plugin-pwa";
 // For a custom domain at the root, build with VITE_BASE=/
 const base = process.env.VITE_BASE || "/araha-counselor/";
 
+const builtAt = new Date().toISOString();
+
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || "1.0.0"),
+    __BUILD_TIME__: JSON.stringify(builtAt),
+  },
   plugins: [
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       injectRegister: false,
       includeAssets: [
         "favicon.svg",
