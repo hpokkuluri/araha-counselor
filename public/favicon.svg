@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#0E1B3D"/>
+  
+  <polygon points="27.0,32.0 21.0,42.4 9.0,42.4 3.0,32.0 9.0,21.6 21.0,21.6" fill="none" stroke="#E2262E" stroke-width="2"/>
+  <polygon points="48.0,20.0 42.0,30.4 30.0,30.4 24.0,20.0 30.0,9.6 42.0,9.6" fill="none" stroke="#E2262E" stroke-width="2"/>
+  <polygon points="48.0,44.0 42.0,54.4 30.0,54.4 24.0,44.0 30.0,33.6 42.0,33.6" fill="none" stroke="#E2262E" stroke-width="2"/>
+  <text x="15" y="37" font-size="13" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-weight="700">a</text>
+  <text x="36" y="25" font-size="12" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-weight="700">ra</text>
+  <text x="36" y="49" font-size="12" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-weight="700">ha</text>
+</svg>
