@@ -2,7 +2,8 @@ import { h } from "./dom.js";
 import { icon } from "./icons.js";
 import { navigate } from "./nav.js";
 import { themeButton } from "./theme.js";
-import { brandName, companyRow } from "./brand.js";
+import { brandName } from "./brand.js";
+import { logo } from "./logo.js";
 
 const TABS = [
   ["home", "/home", "Home", "home"],
@@ -23,10 +24,8 @@ export function shell(root, { title, tab, back, tabs = true, brand = false }) {
       ariaLabel: "Back",
     }, [icon("back"), "Back"]) : null,
     brand ? h("div", { class: "brand-lockup" }, [
-      h("div", { class: "brand-text" }, [
-        companyRow(),
-        brandName(),
-      ]),
+      logo("logo bar-logo"),
+      brandName("compact"),
     ]) : h("h1", { class: "bar-title" }, title || ""),
     themeButton(),
   ]);

@@ -178,7 +178,11 @@ h1, h2, h3, p { margin: 0; }
 }
 .brand-name.lg { font-size: clamp(1.9rem, 8vw, 2.5rem); }
 .brand-name.md { font-size: 1.85rem; }
-.brand-lockup .brand-name { font-size: clamp(1.2rem, 4.8vw, 1.45rem); }
+.brand-name.compact { font-size: clamp(1.05rem, 4.4vw, 1.28rem); min-width: 0; }
+.brand-name.compact .brand-araha { font-size: .78em; letter-spacing: .18em; }
+.bar-logo { width: 32px; height: 32px; flex: 0 0 32px; }
+[data-theme="light"] .bar .mark-t { fill: #0E1B3D; }
+[data-theme="dark"] .bar .mark-t { fill: #fff; }
 [data-theme="dark"] .brand-araha,
 .on-dark .brand-araha,
 .auth-hero .brand-araha,
@@ -362,13 +366,20 @@ textarea.txt { resize: vertical; min-height: 88px; }
 .plain li { margin: 4px 0; }
 .about p + p { margin-top: 8px; }
 .update-banner {
-  position: fixed; z-index: 40; top: calc(var(--safe-t) + 8px); left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 10px; max-width: calc(100% - 24px);
-  padding: 8px 8px 8px 14px; border-radius: 999px;
+  position: fixed; z-index: 30; left: 12px; right: 12px;
+  bottom: calc(72px + var(--safe-b));
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 8px 10px 14px; border-radius: 16px;
   background: var(--navy); color: #fff; border: 1px solid rgba(255,255,255,.18);
-  font-size: .85rem; font-weight: 700; box-shadow: var(--shadow);
+  font-size: .9rem; font-weight: 700; box-shadow: var(--shadow);
 }
-.update-banner button { padding: 8px 12px; border-radius: 999px; font-size: .82rem; }
+.update-banner[hidden] { display: none !important; }
+.update-banner span { flex: 1; min-width: 0; }
+.update-refresh { padding: 8px 14px; border-radius: 999px; font-size: .85rem; flex-shrink: 0; }
+.update-x {
+  width: 36px; height: 36px; border: 0; border-radius: 10px; flex-shrink: 0;
+  background: transparent; color: #fff; font-size: 1.35rem; line-height: 1;
+}
 .offline {
   background: var(--gold); color: var(--navy); text-align: center; font-size: .8rem; font-weight: 800;
   padding: 6px 10px;

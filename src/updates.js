@@ -24,7 +24,13 @@ export function onUpdateReady(fn) {
 export function mountUpdateBanner() {
   const bar = h("div", { class: "update-banner", hidden: true, role: "status" }, [
     h("span", {}, "A new version is ready"),
-    h("button", { type: "button", class: "btn gold", onClick: () => applyUpdate() }, "Refresh"),
+    h("button", { type: "button", class: "btn gold update-refresh", onClick: () => applyUpdate() }, "Refresh"),
+    h("button", {
+      type: "button",
+      class: "update-x",
+      ariaLabel: "Dismiss",
+      onClick: () => { bar.hidden = true; },
+    }, "×"),
   ]);
   document.body.append(bar);
   onUpdateReady((ready) => { bar.hidden = !ready; });
