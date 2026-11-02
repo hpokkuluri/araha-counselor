@@ -4,6 +4,7 @@ import { navigate } from "../nav.js";
 import { session, signOut, deleteCurrent, replaceData } from "../session.js";
 import { exportPayload, parseBackup } from "../data.js";
 import { applyTheme, choiceLabel, getChoice } from "../theme.js";
+import { brandName } from "../brand.js";
 
 export function mountSettings(root) {
   const view = shell(root, { title: "More", tab: "more" });
@@ -43,10 +44,11 @@ export function mountSettings(root) {
         navigate("/login");
       },
     }, "Delete profile"),
-    h("section", { class: "card about" }, [
-      h("h2", { class: "product-name" }, ["ARAHA ", h("em", {}, "Counselor")]),
+    h("section", { class: "card about stack" }, [
+      brandName("md"),
       h("p", {}, "Version 1 · Arahasoft LLC"),
       h("p", { class: "hint" }, "Free to use. No account with Arahasoft is required. A sign-in or license check can be added later without moving these tools off your device. Chats are not uploaded."),
+      h("p", { class: "hint" }, "Install it from the browser menu (Add to Home Screen or Install app). It then opens like an app, with your data still on this device."),
     ]),
   );
   return { unmount: view.destroy };

@@ -42,8 +42,10 @@
   .sp-t.t1{animation-delay:.75s}.sp-t.t2{animation-delay:.88s}.sp-t.t3{animation-delay:1s}
   .sp-word sup{font-size:.55em;letter-spacing:0;margin-left:-.3em;vertical-align:.9em;font-weight:600}
   .sp-word{margin-top:22px;font-family:Manrope,sans-serif;font-weight:800;font-size:1.05rem;letter-spacing:.9em;padding-left:.9em;opacity:0;animation:spWord 1.1s cubic-bezier(.2,.8,.2,1) 1.1s forwards}
-  .sp-app{margin-top:26px;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:clamp(1.55rem,6.6vw,2.3rem);line-height:1.05;opacity:0;transform:translateY(8px);animation:spUp .7s ease 1.85s forwards;text-align:center;white-space:nowrap}
-  .sp-app em{color:#F2B33D;font-style:italic}
+  .sp-app{margin-top:22px;font-size:clamp(1.9rem,8vw,2.5rem);opacity:0;transform:translateY(8px);animation:spUp .7s ease 1.85s forwards}
+  .brand-name{display:inline-flex;align-items:baseline;justify-content:center;gap:.32em;line-height:1;white-space:nowrap}
+  .brand-araha{font-family:Manrope,sans-serif;font-weight:800;font-style:normal;letter-spacing:.42em;text-transform:uppercase;font-size:.72em;line-height:1;color:#fff}
+  .brand-counselor{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;letter-spacing:0;font-size:1em;line-height:.9;color:#F2B33D}
   .sp-line{height:2px;width:0;margin-top:10px;background:linear-gradient(90deg,transparent,#F2B33D,transparent);animation:spLine .8s ease 2.2s forwards}
   @keyframes spDraw{to{stroke-dashoffset:0}}
   @keyframes spFade{to{opacity:1}}
@@ -74,7 +76,10 @@
       <text class="sp-t t3" x="36" y="49" font-size="12">ha</text>
     </svg>
     <div class="sp-word">ARAHASOFT<sup>™</sup></div>
-    <div class="sp-app">ARAHA <em>Counselor</em></div>
+    <div class="sp-app brand-name">
+      <span class="brand-araha">ARAHA</span>
+      <span class="brand-counselor">Counselor</span>
+    </div>
     <div class="sp-line"></div>
   </div>
   <button class="skip-splash" type="button" data-testid="skip-splash">Skip</button>

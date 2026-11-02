@@ -154,10 +154,26 @@ h1, h2, h3, p { margin: 0; }
   font-weight: 800; padding: 8px 8px 8px 0; border-radius: 12px;
 }
 .brand-lockup { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
-.brand-lockup b, .product-name { font-family: var(--serif); font-weight: 400; }
-.brand-lockup b { display: block; font-size: clamp(1.05rem, 4.4vw, 1.35rem); line-height: 1; white-space: nowrap; }
-.brand-lockup em, .product-name em { font-style: italic; font-weight: 400; color: var(--gold); }
-.brand-lockup small { color: var(--text-3); letter-spacing: .14em; text-transform: uppercase; font-size: .68rem; font-weight: 700; }
+.brand-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; gap: 1px; }
+.brand-lockup small { color: var(--text-3); letter-spacing: .14em; text-transform: uppercase; font-size: .68rem; font-weight: 700; font-family: var(--sans); }
+/* ARAHA uses the ARAHASOFT wordmark: Manrope 800 and its resting tracking (.42em). */
+.brand-name { display: inline-flex; align-items: baseline; gap: .32em; line-height: 1; white-space: nowrap; max-width: 100%; }
+.brand-araha {
+  font-family: Manrope, sans-serif; font-weight: 800; font-style: normal;
+  letter-spacing: .42em; text-transform: uppercase; font-size: .72em; line-height: 1;
+  color: #0E1B3D;
+}
+.brand-counselor {
+  font-family: var(--serif); font-style: italic; font-weight: 400; letter-spacing: 0;
+  font-size: 1em; line-height: .85; color: #F2B33D;
+}
+.brand-name.lg { font-size: clamp(1.9rem, 8vw, 2.5rem); }
+.brand-name.md { font-size: 1.85rem; }
+.brand-lockup .brand-name { font-size: clamp(1.2rem, 4.8vw, 1.45rem); }
+[data-theme="dark"] .brand-araha,
+.on-dark .brand-araha,
+.auth-hero .brand-araha,
+#splash .brand-araha { color: #fff; }
 .brand-mark {
   width: 42px; height: 42px; border-radius: 12px;
   background: var(--mark-bg);

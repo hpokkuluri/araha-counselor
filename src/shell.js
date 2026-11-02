@@ -3,6 +3,7 @@ import { icon } from "./icons.js";
 import { logo } from "./logo.js";
 import { navigate } from "./nav.js";
 import { themeButton } from "./theme.js";
+import { brandName } from "./brand.js";
 
 const TABS = [
   ["home", "/home", "Home", "home"],
@@ -24,8 +25,8 @@ export function shell(root, { title, tab, back, tabs = true, brand = false }) {
     }, [icon("back"), "Back"]) : null,
     brand ? h("div", { class: "brand-lockup" }, [
       h("span", { class: "brand-mark" }, logo()),
-      h("div", {}, [
-        h("b", { class: "product-name" }, ["ARAHA ", h("em", {}, "Counselor")]),
+      h("div", { class: "brand-text" }, [
+        brandName(),
         h("small", {}, "Arahasoft"),
       ]),
     ]) : h("h1", { class: "bar-title" }, title || ""),

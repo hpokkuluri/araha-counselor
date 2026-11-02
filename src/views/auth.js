@@ -5,6 +5,7 @@ import { parseBackup } from "../data.js";
 import { navigate } from "../nav.js";
 import { themeButton } from "../theme.js";
 import { icon } from "../icons.js";
+import { brandName } from "../brand.js";
 
 export async function mountAuth(root, { next = "/home" } = {}) {
   const accounts = await listAccounts().catch(() => []);
@@ -84,7 +85,7 @@ export async function mountAuth(root, { next = "/home" } = {}) {
       h("section", { class: "auth-hero" }, [
         h("div", { class: "brand-mark" }, logo()),
         h("div", { class: "wordmark" }, ["ARAHASOFT", h("sup", {}, "™")]),
-        h("h1", { class: "display" }, ["ARAHA ", h("em", {}, "Counselor")]),
+        brandName("lg"),
         h("p", { class: "tag" }, "A private counselor for high school. Your profile, plans, and chats stay on this device."),
       ]),
       h("div", { class: "auth-body" }, [

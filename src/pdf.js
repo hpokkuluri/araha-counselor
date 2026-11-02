@@ -24,6 +24,7 @@ async function loadBrandFonts(doc) {
   const faces = [
     ["manrope-latin-400-normal.ttf", "Manrope", "normal"],
     ["manrope-latin-700-normal.ttf", "Manrope", "bold"],
+    ["manrope-latin-800-normal.ttf", "Manrope800", "normal"],
     ["instrument-serif-latin-400-normal.ttf", "InstrumentSerif", "normal"],
     ["instrument-serif-latin-400-italic.ttf", "InstrumentSerif", "italic"],
   ];
@@ -41,6 +42,38 @@ function clip(value, max) {
   if (!text) return "";
   if (text.length <= max) return text;
   return `${text.slice(0, max - 3).trimEnd()}...`;
+}
+
+const MARK_TRACK = 0.42;
+
+function drawTracked(doc, text, x, baseline, size, color, family, style) {
+  doc.setFont(family, style);
+  doc.setFontSize(size);
+  doc.setTextColor(...color);
+  doc.setCharSpace(size * MARK_TRACK);
+  doc.text(text, x, baseline);
+  const width = doc.getTextWidth(text);
+  doc.setCharSpace(0);
+  return width;
+}
+
+function drawProductName(doc, x, baseline, branded) {
+  const arahaSize = 15;
+  const counselorSize = 26;
+  const arahaWidth = drawTracked(
+    doc,
+    "ARAHA",
+    x,
+    baseline,
+    arahaSize,
+    [255, 255, 255],
+    branded ? "Manrope800" : "helvetica",
+    branded ? "normal" : "bold",
+  );
+  doc.setFont(branded ? "InstrumentSerif" : "helvetica", "italic");
+  doc.setFontSize(counselorSize);
+  doc.setTextColor(...GOLD);
+  doc.text("Counselor", x + arahaWidth + 8, baseline);
 }
 
 function drawLogo(doc, x, y, scale) {
@@ -172,19 +205,9 @@ export async function buildPdf(data) {
   }
 
   const profile = data.profile;
-  font(branded ? "Manrope" : "helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(255, 255, 255);
-  doc.text("ARAHASOFT", branded ? 92 : 86, 42);
-
-  font(branded ? "InstrumentSerif" : "helvetica", "normal");
-  doc.setFontSize(26);
-  doc.setTextColor(255, 255, 255);
-  doc.text("ARAHA", branded ? 92 : 86, 72);
-  const arahaWidth = doc.getTextWidth("ARAHA ");
-  font(branded ? "InstrumentSerif" : "helvetica", "italic");
-  doc.setTextColor(...GOLD);
-  doc.text("Counselor", (branded ? 92 : 86) + arahaWidth, 72);
+  const nameX = branded ? 92 : 86;
+  drawTracked(doc, "ARAHASOFT", nameX, 40, 11, [255, 255, 255], branded ? "Manrope800" : "helvetica", "normal");
+  drawProductName(doc, nameX, 78, branded);
 
   font("Manrope", "normal");
   doc.setFontSize(10);
