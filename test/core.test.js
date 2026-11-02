@@ -6,7 +6,7 @@ import { buildMailto, emailSubject, essayStatus, parentEmails, progressSummary }
 import { resolveTheme } from "../src/theme.js";
 import { dueLabel } from "../src/format.js";
 import { buildPdf } from "../src/pdf.js";
-import { LARGE_ID, SMALL_ID, chooseModelId, noteInterruptedLoad, prefersSmallModel } from "../src/ai.js";
+import { LARGE_ID, SMALL_ID, chooseModelId, complete, currentModelId, installEngineForTest, loadModel, noteInterruptedLoad, prefersSmallModel, resetConversation, stopGeneration } from "../src/ai.js";
 
 test("password round-trip locks the profile", async () => {
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -115,4 +115,61 @@ test("a killed model load is marked too big and not retried", () => {
   assert.equal(mem.getItem("ac-model-load"), null);
   const tooBig = JSON.parse(mem.getItem("ac-model-too-big"));
   assert.equal(chooseModelId({ savedId: LARGE_ID, userPick: true, tooBig, smallDevice: false }), SMALL_ID);
+});
+
+test("clear and stop keep the shared engine loaded", async () => {
+  const calls = [];
+  const stub = {
+    modelId: "phone-model",
+    worker: { terminate() { calls.push("terminate"); } },
+    unload: async () => { calls.push("unload"); },
+    resetChat: async () => { calls.push("reset"); },
+    interruptGenerate: async () => { calls.push("interrupt"); },
+    chat: {
+      completions: {
+        create: async (payload) => {
+          calls.push(payload.stream ? "stream" : "once");
+          if (!payload.stream) return { choices: [{ message: { content: "ok" } }] };
+          return (async function* () {
+            yield { choices: [{ delta: { content: "Hi" } }] };
+          })();
+        },
+      },
+    },
+  };
+  installEngineForTest(stub);
+  try {
+    const again = await loadModel("phone-model");
+    assert.equal(again, stub);
+    const first = await complete({
+      system: "Be brief.",
+      threadKey: "counselor",
+      messages: [{ role: "user", content: "Hello" }],
+    });
+    const second = await complete({
+      system: "Be brief.",
+      threadKey: "counselor",
+      messages: [{ role: "user", content: "Thanks" }],
+    });
+    assert.equal(first, "Hi");
+    assert.equal(second, "Hi");
+    assert.equal(calls.filter((call) => call === "reset").length, 0);
+    await complete({
+      system: "Tutor.",
+      threadKey: "subject:geometry",
+      messages: [{ role: "user", content: "Hint" }],
+    });
+    assert.equal(calls.filter((call) => call === "reset").length, 1);
+    calls.length = 0;
+    await stopGeneration();
+    assert.deepEqual(calls, ["interrupt"]);
+    await resetConversation();
+    assert.equal(currentModelId(), "phone-model");
+    assert.equal(calls.includes("reset"), true);
+    assert.equal(calls.includes("unload"), false);
+    assert.equal(calls.includes("terminate"), false);
+    assert.equal(await loadModel("phone-model"), stub);
+  } finally {
+    installEngineForTest(null);
+  }
 });

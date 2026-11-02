@@ -16,6 +16,7 @@ export function mountChat(root, draft = "") {
       "How do I compare two colleges?",
       "What questions should I ask about a career?",
     ],
+    key: "counselor",
     messages: () => session.data.counselorMessages,
     push: (data, message) => {
       data.counselorMessages.push(message);

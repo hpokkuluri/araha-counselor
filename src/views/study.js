@@ -66,6 +66,7 @@ export function mountSubject(root, id) {
   mountThread(view.content, {
     intro: `Ask for a step-by-step explanation or a practice question in ${subject().name || "this subject"}. Math uses $...$ so it can render.`,
     placeholder: "Ask for a hint or a practice question",
+    key: `subject:${id}`,
     messages: () => subject()?.messages || [],
     push: (data, message) => {
       const item = data.subjects.find((row) => row.id === id);

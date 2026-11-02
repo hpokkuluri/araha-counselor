@@ -114,7 +114,9 @@ async function begin(model, progress, redraw) {
     data.settings.modelId = model.id;
     data.settings.modelPick = "user";
   });
-  if (previous && previous !== model.id) forgetModel(previous).catch(() => {});
+  if (previous && previous !== model.id) {
+    try { await forgetModel(previous); } catch { /* cache may already be gone */ }
+  }
   progress.hidden = false;
   const bar = progress.querySelector(".meter");
   const label = progress.querySelector("[data-testid=model-status]");

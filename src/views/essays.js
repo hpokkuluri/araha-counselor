@@ -164,5 +164,6 @@ async function completeSafe(data, essay) {
     system: essaySystem(data, essay),
     messages: [{ role: "user", content: "Review what I have. Coach me. Do not write my essay." }],
     maxTokens: 800,
+    threadKey: `essay:${essay.id}`,
   });
 }

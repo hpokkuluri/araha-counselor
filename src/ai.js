@@ -112,7 +112,15 @@ let engine = null;
 let worker = null;
 let currentId = "";
 let loading = null;
+let loadingId = "";
 let gpuLimits = null;
+let conversationKey = "";
+let inflight = null;
+let generationEpoch = 0;
+
+// One WebLLM engine for the whole app. Counselor, essays, and subject
+// tutors share it. Weights unload only when the selected model changes
+// or a download is removed — never when a screen changes or a chat is cleared.
 
 function lib() {
   if (!webllmPromise) webllmPromise = import("@mlc-ai/web-llm");
@@ -164,24 +172,43 @@ export async function forgetModel(modelId) {
 }
 
 export async function unloadModel() {
-  try { await engine?.unload?.(); } catch { /* already gone */ }
-  try { worker?.terminate?.(); } catch { /* already gone */ }
+  const current = engine;
+  const thread = worker;
   engine = null;
   worker = null;
   currentId = "";
+  conversationKey = "";
+  try { await current?.unload?.(); } catch { /* already gone */ }
+  try { thread?.terminate?.(); } catch { /* already gone */ }
 }
 
 export function loadModel(modelId, onProgress) {
   if (engine && currentId === modelId) return Promise.resolve(engine);
-  if (loading) return loading;
-  loading = startLoad(modelId, onProgress).finally(() => { loading = null; });
-  return loading;
+  if (loading && loadingId === modelId) return loading;
+  const earlier = loading;
+  loadingId = modelId;
+  const job = (async () => {
+    if (earlier) {
+      try { await earlier; } catch { /* a failed load leaves the engine empty */ }
+    }
+    if (engine && currentId === modelId) return engine;
+    return startLoad(modelId, onProgress);
+  })();
+  const tracked = job.finally(() => {
+    if (loading === tracked) {
+      loading = null;
+      loadingId = "";
+    }
+  });
+  loading = tracked;
+  return tracked;
 }
 
 async function startLoad(modelId, onProgress) {
+  if (engine && currentId === modelId) return engine;
   const store = storage();
   store?.setItem(LOAD_FLAG, modelId);
-  await unloadModel();
+  if (currentId && currentId !== modelId) await unloadModel();
   const { CreateWebWorkerMLCEngine, CreateMLCEngine } = await lib();
   const config = {
     initProgressCallback: (report) => {
@@ -214,8 +241,55 @@ async function startLoad(modelId, onProgress) {
   return engine;
 }
 
-export async function complete({ system, messages, onDelta, maxTokens = 700 }) {
+export async function useConversation(key) {
+  if (!key || key === conversationKey) return;
+  const previous = conversationKey;
+  conversationKey = key;
+  if (!engine || !previous) return;
+  try { await engine.resetChat(); } catch { /* keep the weights loaded */ }
+}
+
+export async function stopGeneration() {
+  generationEpoch += 1;
+  try { await engine?.interruptGenerate?.(); } catch { /* ignore */ }
+}
+
+export async function resetConversation() {
+  const pending = inflight;
+  await stopGeneration();
+  if (pending) {
+    try { await pending; } catch { /* the interrupted reply is discarded */ }
+  }
+  if (!engine) return;
+  try { await engine.resetChat(); } catch { /* keep the weights loaded */ }
+}
+
+export async function complete({ system, messages, onDelta, maxTokens = 700, threadKey = "" }) {
   if (!engine) throw new Error("The on-device model isn't loaded.");
+  const prior = inflight;
+  const mine = ++generationEpoch;
+  if (prior) {
+    try { await engine.interruptGenerate?.(); } catch { /* ignore */ }
+  }
+  const run = (async () => {
+    if (prior) {
+      try { await prior; } catch { /* the previous reply was interrupted */ }
+    }
+    if (mine !== generationEpoch) return "";
+    return generate({ system, messages, onDelta, maxTokens, threadKey, mine });
+  })();
+  inflight = run;
+  try {
+    return await run;
+  } finally {
+    if (inflight === run) inflight = null;
+  }
+}
+
+async function generate({ system, messages, onDelta, maxTokens, threadKey, mine }) {
+  if (mine !== generationEpoch) return "";
+  await useConversation(threadKey);
+  if (mine !== generationEpoch) return "";
   const history = messages.slice(-8).map((message) => ({
     role: message.role,
     content: String(message.content || "").slice(0, 4000),
@@ -226,23 +300,37 @@ export async function complete({ system, messages, onDelta, maxTokens = 700 }) {
     max_tokens: maxTokens,
     stream: true,
   };
-  try { await engine.resetChat(); } catch { /* older builds */ }
-  const stream = await engine.chat.completions.create(payload);
   let text = "";
-  for await (const chunk of stream) {
-    const delta = chunk?.choices?.[0]?.delta?.content || "";
-    if (!delta) continue;
-    text += delta;
-    onDelta?.(text);
+  try {
+    const stream = await engine.chat.completions.create(payload);
+    for await (const chunk of stream) {
+      if (mine !== generationEpoch) return text.trim();
+      const delta = chunk?.choices?.[0]?.delta?.content || "";
+      if (!delta) continue;
+      text += delta;
+      onDelta?.(text);
+    }
+  } catch (error) {
+    if (mine !== generationEpoch) return text.trim();
+    throw error;
   }
+  if (mine !== generationEpoch) return text.trim();
   if (!text.trim()) {
     const result = await engine.chat.completions.create({ ...payload, stream: false });
+    if (mine !== generationEpoch) return text.trim();
     text = result?.choices?.[0]?.message?.content || "";
     onDelta?.(text);
   }
   return text.trim();
 }
 
-export async function stopGeneration() {
-  try { await engine?.interruptGenerate?.(); } catch { /* ignore */ }
+export function installEngineForTest(stub) {
+  engine = stub || null;
+  worker = stub?.worker || null;
+  currentId = stub?.modelId || "";
+  conversationKey = "";
+  inflight = null;
+  generationEpoch = 0;
+  loading = null;
+  loadingId = "";
 }

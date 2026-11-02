@@ -4,7 +4,7 @@ import { renderRich } from "./rich.js";
 import { uid, pushActivity } from "./data.js";
 import { session, update } from "./session.js";
 import { navigate } from "./nav.js";
-import { complete, currentModelId, fitModelChoice, loadModel, modelCached, stopGeneration } from "./ai.js";
+import { complete, currentModelId, fitModelChoice, loadModel, modelCached, resetConversation, stopGeneration } from "./ai.js";
 
 export function mountThread(parent, spec) {
   const log = h("div", { class: "chat", "data-testid": "chat-log" });
@@ -16,6 +16,7 @@ export function mountThread(parent, spec) {
   });
   const send = h("button", { type: "button", class: "round", ariaLabel: "Send" }, icon("chevron"));
   let running = false;
+  let clearing = false;
   let generation = 0;
 
   const paint = () => {
@@ -53,11 +54,12 @@ export function mountThread(parent, spec) {
     running = true;
     send.disabled = true;
     const mine = ++generation;
-    const pending = h("div", { class: "msg ai" }, "Getting the on-device model ready…");
+    const modelId = fitModelChoice(session.data.settings);
+    const ready = currentModelId() === modelId;
+    const pending = h("div", { class: "msg ai" }, ready ? "Thinking…" : "Getting the on-device model ready…");
     log.append(pending);
     try {
-      const modelId = fitModelChoice(session.data.settings);
-      if (currentModelId() !== modelId) {
+      if (!ready) {
         const cached = await modelCached(modelId);
         if (!cached) {
           pending.className = "msg err";
@@ -80,6 +82,7 @@ export function mountThread(parent, spec) {
         system: spec.system(),
         messages: spec.messages(),
         maxTokens: spec.maxTokens || 700,
+        threadKey: spec.key || "chat",
         onDelta: (value) => {
           if (mine !== generation) return;
           pending.textContent = value;
@@ -94,8 +97,10 @@ export function mountThread(parent, spec) {
       pending.className = "msg err";
       pending.textContent = error?.message || "The on-device model stopped.";
     } finally {
-      running = false;
-      send.disabled = false;
+      if (!clearing) {
+        running = false;
+        send.disabled = false;
+      }
     }
   }
 
@@ -120,7 +125,9 @@ export function mountThread(parent, spec) {
         h("button", {
           type: "button",
           class: "btn ghost",
+          "data-testid": "chat-stop",
           onClick: async () => {
+            if (clearing) return;
             generation += 1;
             await stopGeneration();
             toast("Stopped.");
@@ -131,9 +138,22 @@ export function mountThread(parent, spec) {
         h("button", {
           type: "button",
           class: "btn ghost",
-          onClick: () => {
-            update((data) => spec.clear(data));
-            paint();
+          "data-testid": "chat-clear",
+          onClick: async () => {
+            if (clearing) return;
+            clearing = true;
+            generation += 1;
+            running = true;
+            send.disabled = true;
+            try {
+              await resetConversation();
+              update((data) => spec.clear(data));
+              paint();
+            } finally {
+              clearing = false;
+              running = false;
+              send.disabled = false;
+            }
           },
         }, "Clear chat"),
       ]),
