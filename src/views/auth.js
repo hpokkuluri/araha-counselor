@@ -84,7 +84,7 @@ export async function mountAuth(root, { next = "/home" } = {}) {
       h("section", { class: "auth-hero" }, [
         h("div", { class: "brand-mark" }, logo()),
         h("div", { class: "wordmark" }, ["ARAHASOFT", h("sup", {}, "™")]),
-        h("h1", { class: "display" }, ["Araha ", h("em", {}, "Counselor")]),
+        h("h1", { class: "display" }, ["ARAHA ", h("em", {}, "Counselor")]),
         h("p", { class: "tag" }, "A private counselor for high school. Your profile, plans, and chats stay on this device."),
       ]),
       h("div", { class: "auth-body" }, [

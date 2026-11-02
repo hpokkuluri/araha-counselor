@@ -44,7 +44,7 @@ export function mountSettings(root) {
       },
     }, "Delete profile"),
     h("section", { class: "card about" }, [
-      h("h2", {}, "Araha Counselor"),
+      h("h2", { class: "product-name" }, ["ARAHA ", h("em", {}, "Counselor")]),
       h("p", {}, "Version 1 · Arahasoft LLC"),
       h("p", { class: "hint" }, "Free to use. No account with Arahasoft is required. A sign-in or license check can be added later without moving these tools off your device. Chats are not uploaded."),
     ]),

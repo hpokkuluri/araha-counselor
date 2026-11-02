@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Araha Counselor by Arahasoft — a private, offline-first student counselor.",
+  "description": "ARAHA Counselor by Arahasoft — a private, offline-first student counselor.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

@@ -18,8 +18,8 @@ export default defineConfig({
         "icons/*.png",
       ],
       manifest: {
-        name: "Araha Counselor",
-        short_name: "Counselor",
+        name: "ARAHA Counselor",
+        short_name: "ARAHA Counselor",
         description: "Private, offline student counselor by Arahasoft. Your data stays on this device.",
         theme_color: "#0E1B3D",
         background_color: "#0E1B3D",

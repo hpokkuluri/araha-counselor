@@ -94,7 +94,7 @@ export async function buildPdf(data) {
     font("Manrope", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...MUTED);
-    doc.text("Araha Counselor  ·  Arahasoft  ·  Generated on this device. Not uploaded.", margin, pageHeight - 26);
+    doc.text("ARAHA Counselor  ·  Arahasoft  ·  Generated on this device. Not uploaded.", margin, pageHeight - 26);
     doc.text(String(page), pageWidth - margin, pageHeight - 26, { align: "right" });
   };
 
@@ -106,7 +106,7 @@ export async function buildPdf(data) {
     font("Manrope", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...MUTED);
-    doc.text("Araha Counselor progress report", margin, 30);
+    doc.text("ARAHA Counselor progress report", margin, 30);
     doc.setDrawColor(...GOLD);
     doc.setLineWidth(1.25);
     doc.line(margin, 36, margin + 42, 36);
@@ -180,8 +180,8 @@ export async function buildPdf(data) {
   font(branded ? "InstrumentSerif" : "helvetica", "normal");
   doc.setFontSize(26);
   doc.setTextColor(255, 255, 255);
-  doc.text("Araha", branded ? 92 : 86, 72);
-  const arahaWidth = doc.getTextWidth("Araha ");
+  doc.text("ARAHA", branded ? 92 : 86, 72);
+  const arahaWidth = doc.getTextWidth("ARAHA ");
   font(branded ? "InstrumentSerif" : "helvetica", "italic");
   doc.setTextColor(...GOLD);
   doc.text("Counselor", (branded ? 92 : 86) + arahaWidth, 72);
@@ -323,8 +323,8 @@ export async function sharePdfFile(blob, filename) {
   const file = new File([blob], filename, { type: "application/pdf" });
   const payload = {
     files: [file],
-    title: "Araha Counselor progress",
-    text: "Progress report from Araha Counselor. Generated on this device.",
+    title: "ARAHA Counselor progress",
+    text: "Progress report from ARAHA Counselor. Generated on this device.",
   };
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     await navigator.share(payload);

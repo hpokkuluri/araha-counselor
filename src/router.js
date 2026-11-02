@@ -58,7 +58,8 @@ function draw(root) {
     "/settings": "More",
     "/model": "On-device AI",
   };
-  document.title = `${titles[route.path] || "Araha Counselor"} · Arahasoft`;
+  const screen = titles[route.path];
+  document.title = !screen || screen === "Counselor" ? "ARAHA Counselor" : `${screen} · ARAHA Counselor`;
   if (head === "essay" && id) return mountEssay(root, id);
   if (head === "subject" && id) return mountSubject(root, id);
   if (route.path === "/chat") return mountChat(root, route.params.get("draft") || "");

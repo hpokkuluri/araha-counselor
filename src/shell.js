@@ -25,7 +25,7 @@ export function shell(root, { title, tab, back, tabs = true, brand = false }) {
     brand ? h("div", { class: "brand-lockup" }, [
       h("span", { class: "brand-mark" }, logo()),
       h("div", {}, [
-        h("b", {}, "Araha Counselor"),
+        h("b", { class: "product-name" }, ["ARAHA ", h("em", {}, "Counselor")]),
         h("small", {}, "Arahasoft"),
       ]),
     ]) : h("h1", { class: "bar-title" }, title || ""),

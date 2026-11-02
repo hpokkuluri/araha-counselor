@@ -31,7 +31,7 @@ test("backup keeps known fields and drops surprises", () => {
   const parsed = parseBackup(JSON.stringify(file));
   assert.equal(parsed.username, "Alex");
   assert.equal(parsed.data.profile.school, "East Windsor High School");
-  assert.throws(() => parseBackup("{}"), /Araha Counselor backup/);
+  assert.throws(() => parseBackup("{}"), /ARAHA Counselor backup/);
 });
 
 test("progress letter addresses both parents and keeps the student's note", () => {

@@ -36,9 +36,9 @@ async function enter(record, key, data) {
   session.entitlement = await getEntitlement({ id: record.id, username: record.username });
   if (!session.entitlement?.ok) {
     clearSession();
-    throw new Error("This profile isn't unlocked for Araha Counselor.");
+    throw new Error("This profile isn't unlocked for ARAHA Counselor.");
   }
-  pushActivity(data, "session", "Opened Araha Counselor");
+  pushActivity(data, "session", "Opened ARAHA Counselor");
   dirty = true;
   await flush();
 }

@@ -22,7 +22,7 @@ async function paint(host) {
       h("h2", {}, "This device can't run the model"),
       h("p", {}, gpu.reason),
       h("p", {}, "Everything else still works: your profile, four-year plan, colleges, careers, scholarships, deadlines, essay drafts, subject notes, parent view, email, PDF, and backup."),
-      h("p", {}, "For the counselor chat and subject tutor, open Araha Counselor in Chrome or Edge on a recent computer, or in current Chrome on a phone, then come back to this screen."),
+      h("p", {}, "For the counselor chat and subject tutor, open ARAHA Counselor in Chrome or Edge on a recent computer, or in current Chrome on a phone, then come back to this screen."),
     ]));
     return;
   }

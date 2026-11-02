@@ -242,7 +242,7 @@ export function parseBackup(text) {
   let value;
   try { value = JSON.parse(text); } catch { throw new Error("That file isn't valid JSON."); }
   if (!value || value.app !== "araha-counselor" || value.format !== 1 || !value.data) {
-    throw new Error("That file isn't an Araha Counselor backup.");
+    throw new Error("That file isn't an ARAHA Counselor backup.");
   }
   return { username: String(value.username || "").trim(), data: normalizeData(value.data) };
 }

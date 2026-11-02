@@ -32,7 +32,7 @@ export function parentEmails(data) {
 
 export function emailSubject(data) {
   const name = data.profile.name.trim();
-  return name ? `Araha Counselor progress — ${name}` : "Araha Counselor progress";
+  return name ? `ARAHA Counselor progress — ${name}` : "ARAHA Counselor progress";
 }
 
 function linesOf(items, render, empty) {
@@ -51,7 +51,7 @@ export function progressSummary(data, now = new Date()) {
   const upcoming = allUpcoming(data).slice(0, 8);
   const out = [];
 
-  out.push("ARAHA COUNSELOR");
+  out.push("ARAHA Counselor");
   out.push("Progress summary");
   out.push(`Generated on this device, ${when}.`);
   if (parents.length) out.push(`Prepared for ${parents.join(" and ")}.`);
@@ -135,7 +135,7 @@ export function progressSummary(data, now = new Date()) {
     `- ${essay.title || "Untitled"} — ${statusLabel(ESSAY_KINDS, essay.kind)} — ${essayStatus(essay)}`
   ), "None started yet"));
   out.push("");
-  out.push("This summary was created in Araha Counselor on the student's device.");
+  out.push("This summary was created in ARAHA Counselor on the student's device.");
   out.push("It was not uploaded to Arahasoft.");
   return out.join("\n");
 }

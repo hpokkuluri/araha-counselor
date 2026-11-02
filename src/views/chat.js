@@ -6,7 +6,7 @@ import { counselorSystem } from "../prompts.js";
 
 export function mountChat(root, draft = "") {
   const view = shell(root, { title: "Counselor", tab: "home", back: "/home", tabs: false });
-  view.content.append(h("p", { class: "crisis" }, "Araha is a study counselor, not a crisis service. If you need help now, tell a trusted adult or call or text 988."));
+  view.content.append(h("p", { class: "crisis" }, "ARAHA is a study counselor, not a crisis service. If you need help now, tell a trusted adult or call or text 988."));
   mountThread(view.content, {
     intro: "Ask about courses, colleges, careers, or scholarships. The counselor uses your profile and will not invent facts or write your essays.",
     placeholder: "Ask your counselor",

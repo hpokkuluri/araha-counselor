@@ -108,7 +108,7 @@ export function mountEssay(root, id) {
   coach.addEventListener("click", () => runCoach(id, coach, showFeedback));
 
   view.content.append(
-    h("p", { class: "lede" }, "Araha coaches structure, voice, and clarity. It will not ghostwrite."),
+    h("p", { class: "lede" }, "ARAHA coaches structure, voice, and clarity. It will not ghostwrite."),
     field("Title", title),
     field("Kind", kind),
     field("Prompt", prompt),

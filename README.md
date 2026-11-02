@@ -1,6 +1,6 @@
-# Araha Counselor
+# ARAHA Counselor
 
-Araha Counselor is a private, offline-first student counselor from Arahasoft. Version 1 is a static web app. It is free to run: there is no backend, no paid API, and no API key. The first profile you create lives only on that phone or computer.
+ARAHA Counselor is a private, offline-first student counselor from Arahasoft. Version 1 is a static web app. It is free to run: there is no backend, no paid API, and no API key. The first profile you create lives only on that phone or computer.
 
 A counselor chat and subject tutors can run an open-source model in the browser. Your questions are not uploaded. If the device cannot run the model, the rest of the app still works.
 
