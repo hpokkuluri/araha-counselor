@@ -27,9 +27,14 @@ export function mountSettings(root) {
     link("Progress report", "Email parents and share a PDF", "/progress"),
     link("On-device AI", "Download the private model", "/model"),
     modelSetting(),
+    h("section", { class: "card stack", "data-testid": "migration" }, [
+      h("h2", {}, "Moving to another address"),
+      h("p", {}, "A future site such as counselor.arahasoft.com would be a different origin from this GitHub Pages address. The profile, PIN, and model cache stored here do not move by themselves."),
+      h("p", { class: "hint" }, "Export a backup below, then use Import on the new address. This screen does not change DNS or publish a new domain."),
+    ]),
     h("section", { class: "card stack" }, [
       h("h2", {}, "Backup"),
-      h("p", { class: "hint" }, "The file is readable JSON. It is how your data moves to a new phone. Keep it private. The copy inside the app stays encrypted."),
+      h("p", { class: "hint" }, "The file is readable JSON. It is how your data moves to a new phone or a future address. Keep it private. The copy inside the app stays encrypted."),
       h("button", { type: "button", class: "btn primary", "data-testid": "export-json", onClick: exportNow }, "Export backup"),
       h("label", { class: "btn ghost" }, [
         "Import backup",

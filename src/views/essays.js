@@ -6,6 +6,7 @@ import { ESSAY_KINDS, pushActivity, uid } from "../data.js";
 import { statusLabel } from "../format.js";
 import { essayStatus } from "../summary.js";
 import { essaySystem } from "../prompts.js";
+import { captureControls } from "../capture.js";
 import { renderRich } from "../rich.js";
 import { complete, currentModelId, fitModelChoice, loadModel, modelCached } from "../ai.js";
 
@@ -24,7 +25,7 @@ export function mountEssayList(root) {
     const id = uid();
     update((data) => {
       data.essays.unshift({
-        id, title: title.value.trim(), kind: kind.value, prompt: "", brainstorm: "", outline: "", draft: "", feedback: "", updatedAt: new Date().toISOString(),
+        id, title: title.value.trim(), kind: kind.value, prompt: "", brainstorm: "", outline: "", draft: "", feedback: "", suggestion: "", collegeName: "", essayDeadline: "", versions: [], updatedAt: new Date().toISOString(),
       });
       pushActivity(data, "essay", "Started an essay");
     });
@@ -63,6 +64,8 @@ export function mountEssay(root, id) {
     placeholder: "1. Hook, a specific moment\n2. What was at stake\n3. What you did\n4. What you learned\n5. Why it matters for this application",
     value: essay.outline,
   });
+  const collegeName = txt({ value: essay.collegeName || "", placeholder: "College this essay is for" });
+  const essayDeadline = txt({ type: "date", value: essay.essayDeadline || "" });
   const draft = area({
     rows: 10,
     placeholder: "Write this in your own words. The coach will not write the essay for you.",
@@ -94,16 +97,90 @@ export function mountEssay(root, id) {
       item.brainstorm = brainstorm.value;
       item.outline = outline.value;
       item.draft = draft.value;
+      item.collegeName = collegeName.value;
+      item.essayDeadline = essayDeadline.value;
       item.updatedAt = new Date().toISOString();
     });
     const n = (draft.value.trim().match(/\S+/g) || []).length;
     count.textContent = n ? `${n} ${n === 1 ? "word" : "words"} in your draft` : "Draft is empty";
   };
-  [title, prompt, brainstorm, outline, draft].forEach((node) => node.addEventListener("input", write));
+  [title, prompt, brainstorm, outline, draft, collegeName].forEach((node) => node.addEventListener("input", write));
+  essayDeadline.addEventListener("change", write);
   kind.addEventListener("change", write);
   write();
   showFeedback();
 
+  const versions = h("div", { class: "stack" });
+  const drawVersions = () => {
+    const rows = session.data.essays.find((item) => item.id === id)?.versions || [];
+    const nodes = [
+      h("h3", {}, "Saved versions"),
+      h("p", { class: "hint" }, "Saving a version keeps the current draft. Restoring does not delete that copy."),
+    ];
+    versions.replaceChildren(
+      ...nodes,
+      ...rows.map((version) => h("p", {}, [
+        `${version.note || "Version"} · ${version.at?.slice(0, 10) || ""}`,
+        " ",
+        h("button", { type: "button", class: "btn ghost", onClick: () => {
+          update((data) => {
+            const item = data.essays.find((row) => row.id === id);
+            if (!item) return;
+            item.versions.unshift({ id: uid(), at: new Date().toISOString(), draft: item.draft, note: "Before restore" });
+            if (item.versions.length > 12) item.versions.length = 12;
+            item.draft = version.draft;
+          });
+          draft.value = session.data.essays.find((row) => row.id === id)?.draft || "";
+          drawVersions();
+        } }, "Restore"),
+      ])),
+    );
+  };
+  drawVersions();
+  const saveVersion = h("button", { type: "button", class: "btn ghost", onClick: () => {
+    update((data) => {
+      const item = data.essays.find((row) => row.id === id);
+      if (!item) return;
+      item.versions.unshift({ id: uid(), at: new Date().toISOString(), draft: item.draft, note: "Saved draft" });
+      if (item.versions.length > 12) item.versions.length = 12;
+    });
+    drawVersions();
+    toast("Version saved on this device.");
+  } }, "Save version");
+  const suggestion = h("div", { class: "card stack", "data-testid": "essay-suggestion" });
+  const showSuggestion = () => {
+    const text = session.data.essays.find((item) => item.id === id)?.suggestion || "";
+    suggestion.replaceChildren(
+      h("h3", {}, "Optional edit"),
+      h("p", { class: "hint" }, "Accepting keeps the current draft as a version, then appends the suggestion. Ignoring leaves your draft alone."),
+    );
+    if (!text) return;
+    suggestion.append(
+      h("p", {}, text),
+      h("button", { type: "button", class: "btn primary", onClick: () => {
+        update((data) => {
+          const item = data.essays.find((row) => row.id === id);
+          if (!item) return;
+          item.versions.unshift({ id: uid(), at: new Date().toISOString(), draft: item.draft, note: "Before suggestion" });
+          item.draft = `${item.draft.trim()}\n\n${item.suggestion}`.trim();
+          item.suggestion = "";
+        });
+        draft.value = session.data.essays.find((row) => row.id === id)?.draft || "";
+        showSuggestion();
+        drawVersions();
+      } }, "Accept"),
+      h("button", { type: "button", class: "btn ghost", onClick: () => {
+        update((data) => {
+          const item = data.essays.find((row) => row.id === id);
+          if (item) item.suggestion = "";
+        });
+        showSuggestion();
+      } }, "Ignore"),
+    );
+  };
+  showSuggestion();
+  const suggest = h("button", { type: "button", class: "btn ghost" }, "Suggest a small edit");
+  suggest.addEventListener("click", () => runCoach(id, suggest, showSuggestion, "suggestion"));
   const coach = h("button", { type: "button", class: "btn gold wide", "data-testid": "essay-coach" }, "Get coach feedback");
   coach.addEventListener("click", () => runCoach(id, coach, showFeedback));
 
@@ -114,9 +191,16 @@ export function mountEssay(root, id) {
     field("Prompt", prompt),
     field("Brainstorm", brainstorm),
     field("Outline", outline),
+    field("College", collegeName),
+    field("Deadline you verified", essayDeadline, "Leave blank until you read the date yourself."),
     field("Your draft", draft),
+    captureControls(draft),
     count,
+    saveVersion,
+    versions,
     coach,
+    suggest,
+    suggestion,
     feedback,
     h("button", { type: "button", class: "btn ghost danger-text", onClick: () => {
       update((data) => { data.essays = data.essays.filter((item) => item.id !== id); });
@@ -126,7 +210,7 @@ export function mountEssay(root, id) {
   return { unmount: view.destroy };
 }
 
-async function runCoach(id, button, showFeedback) {
+async function runCoach(id, button, showFeedback, mode = "coach") {
   const essay = session.data.essays.find((item) => item.id === id);
   if (!essay) return;
   button.disabled = true;
@@ -142,12 +226,13 @@ async function runCoach(id, button, showFeedback) {
       }
       await loadModel(modelId);
     }
-    const reply = await completeSafe(session.data, essay);
+    const reply = await completeSafe(session.data, essay, mode);
     update((data) => {
       const item = data.essays.find((row) => row.id === id);
       if (!item) return;
-      item.feedback = reply;
-      pushActivity(data, "essay", "Asked the essay coach");
+      if (mode === "suggestion") item.suggestion = reply;
+      else item.feedback = reply;
+      pushActivity(data, "essay", mode === "suggestion" ? "Asked for an optional edit" : "Asked the essay coach");
     });
     showFeedback();
   } catch (error) {
@@ -158,12 +243,12 @@ async function runCoach(id, button, showFeedback) {
   }
 }
 
-async function completeSafe(data, essay) {
+async function completeSafe(data, essay, mode) {
   const { complete } = await import("../ai.js");
   return complete({
-    system: essaySystem(data, essay),
-    messages: [{ role: "user", content: "Review what I have. Coach me. Do not write my essay." }],
-    maxTokens: 800,
+    system: essaySystem(data, essay, mode),
+    messages: [{ role: "user", content: mode === "suggestion" ? "Suggest one small optional edit. Do not rewrite my essay." : "Review what I have. Coach me. Do not write my essay." }],
+    maxTokens: 500,
     threadKey: `essay:${essay.id}`,
   });
 }

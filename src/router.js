@@ -15,6 +15,7 @@ import { mountParent } from "./views/parent.js";
 import { mountProgress } from "./views/progress.js";
 import { mountSettings } from "./views/settings.js";
 import { mountModel } from "./views/model.js";
+import { mountApplication } from "./views/application.js";
 
 let current = null;
 let seq = 0;
@@ -57,6 +58,7 @@ function draw(root) {
     "/progress": "Progress",
     "/settings": "More",
     "/model": "On-device AI",
+    "/application": "My application",
   };
   const screen = titles[route.path];
   document.title = !screen || screen === "Counselor" ? "ARAHA Counselor" : `${screen} · ARAHA Counselor`;
@@ -77,6 +79,7 @@ function draw(root) {
     "/progress": mountProgress,
     "/settings": mountSettings,
     "/model": mountModel,
+    "/application": mountApplication,
   };
   const mount = pages[route.path] || mountHome;
   return mount(root);

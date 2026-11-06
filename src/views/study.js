@@ -5,6 +5,8 @@ import { session, update } from "../session.js";
 import { pushActivity, uid } from "../data.js";
 import { mountThread } from "../thread.js";
 import { tutorSystem } from "../prompts.js";
+import { evaluateExpression } from "../calc.js";
+import { PRACTICE_NOTE, practiceFor } from "../practice.js";
 
 export function mountStudy(root) {
   const view = shell(root, { title: "Subjects", tab: "study" });
@@ -19,7 +21,7 @@ export function mountStudy(root) {
     if (!label) return;
     const id = uid();
     update((data) => {
-      data.subjects.unshift({ id, name: label, notes: "", messages: [], createdAt: new Date().toISOString() });
+      data.subjects.unshift({ id, name: label, notes: "", messages: [], cards: [], createdAt: new Date().toISOString() });
       pushActivity(data, "subject", `Added ${label}`);
     });
     navigate(`/subject/${id}`);
@@ -83,5 +85,107 @@ export function mountSubject(root, id) {
     activityLabel: `Tutor: ${subject()?.name || "subject"}`,
     maxTokens: 700,
   });
+  view.content.append(studyTools(id, subject));
   return { unmount: view.destroy };
+}
+
+function studyTools(id, subject) {
+  const calcIn = txt({ placeholder: "e.g. (3+4)*2 or sqrt(81)", "data-testid": "calc-input" });
+  const calcOut = h("p", { class: "hint", "data-testid": "calc-output" }, "Checks arithmetic only. It does not grade a word problem.");
+  const calc = h("form", { class: "card stack" }, [
+    h("h2", {}, "Calculator check"),
+    field("Expression", calcIn),
+    h("button", { class: "btn primary", type: "submit" }, "Check"),
+    calcOut,
+  ]);
+  calc.addEventListener("submit", (event) => {
+    event.preventDefault();
+    try {
+      const value = evaluateExpression(calcIn.value);
+      calcOut.textContent = `= ${Number(value.toFixed(6))}`;
+    } catch (error) {
+      calcOut.textContent = error.message;
+    }
+  });
+
+  const front = txt({ placeholder: "Front" });
+  const back = txt({ placeholder: "Back" });
+  const cards = h("div", { class: "stack" });
+  const drawCards = () => {
+    const rows = subject()?.cards || [];
+    cards.replaceChildren(...rows.map((card, index) => {
+      let show = false;
+      const body = h("p", {}, card.front);
+      const button = h("button", { type: "button", class: "btn ghost", onClick: () => {
+        show = !show;
+        body.textContent = show ? card.back : card.front;
+      } }, "Flip");
+      return h("div", { class: "card" }, [
+        body,
+        button,
+        h("button", { type: "button", class: "btn ghost", onClick: () => {
+          update((data) => {
+            const item = data.subjects.find((row) => row.id === id);
+            item?.cards.splice(index, 1);
+          });
+          drawCards();
+        } }, "Remove"),
+      ]);
+    }));
+  };
+  drawCards();
+  const cardForm = h("form", { class: "stack" }, [
+    h("h2", {}, "Flashcards"),
+    cards,
+    field("Front", front),
+    field("Back", back),
+    h("button", { class: "btn primary", type: "submit" }, "Save card"),
+  ]);
+  cardForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!front.value.trim() || !back.value.trim()) return;
+    update((data) => {
+      const item = data.subjects.find((row) => row.id === id);
+      if (!item) return;
+      if (!item.cards) item.cards = [];
+      item.cards.unshift({ id: uid(), front: front.value.trim(), back: back.value.trim() });
+    });
+    front.value = "";
+    back.value = "";
+    drawCards();
+  });
+
+  const quizHost = h("div", { class: "stack" });
+  const questions = practiceFor(subject()?.name || "");
+  let index = 0;
+  let correct = 0;
+  const ask = () => {
+    const question = questions[index];
+    if (!question) {
+      quizHost.replaceChildren(h("p", {}, `You finished this set: ${correct} of ${questions.length}. ${PRACTICE_NOTE}`));
+      return;
+    }
+    quizHost.replaceChildren(
+      h("p", { class: "hint" }, PRACTICE_NOTE),
+      h("p", {}, question.prompt),
+      ...question.choices.map((choice, choiceIndex) => h("button", {
+        type: "button",
+        class: "btn ghost",
+        onClick: () => {
+          const ok = choiceIndex === question.answer;
+          if (ok) correct += 1;
+          toast(ok ? "That matches." : question.explain);
+          index += 1;
+          ask();
+        },
+      }, choice)),
+    );
+  };
+  ask();
+
+  return h("div", { class: "stack" }, [
+    calc,
+    h("section", { class: "card stack" }, [cardForm]),
+    h("section", { class: "card stack" }, [h("h2", {}, "Practice"), quizHost]),
+  ]);
 }

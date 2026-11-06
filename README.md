@@ -37,12 +37,19 @@ The counselor and tutors need WebGPU:
 - Safari support depends on the version. Firefox often does not expose WebGPU.
 - If WebGPU is missing, the model screen says so. Profile, plan, colleges, scholarships, deadlines, essays, notes, parent view, email, PDF, and backup keep working.
 
-Two models are offered:
+Model choices come from `@mlc-ai/web-llm` 0.2.87 `vram_required_MB`. They were not measured on a physical iPhone in this change.
 
-| Model | Download | GPU memory | Use |
+| Model | id | GPU memory in that config | How it is chosen |
 | --- | --- | --- | --- |
-| Qwen 2.5 3B Instruct (q4f16) | about 1.7 GB | about 2.5 GB | Recommended |
-| Llama 3.2 1B Instruct (q4f16) | about 700 MB | about 0.9 GB | Smaller fallback |
+| Llama 3.2 1B Instruct q4f16 | `Llama-3.2-1B-Instruct-q4f16_1-MLC` | 879 MB | Automatic on a phone. About 700 MB to download. Loaded with a 2048-token cap. |
+| Qwen 2.5 1.5B Instruct q4f16 | `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` | 1630 MB | Optional phone step up. Not automatic. |
+| Qwen 2.5 3B Instruct q4f16 | `Qwen2.5-3B-Instruct-q4f16_1-MLC` | 2505 MB | Automatic on a computer. About 1.7 GB to download. |
+| Qwen 2.5 7B Instruct q4f16 | `Qwen2.5-7B-Instruct-q4f16_1-MLC` | 5107 MB | Computer only, and only if you choose it. |
+| Llama 3.1 8B Instruct q4f16 | `Llama-3.1-8B-Instruct-q4f16_1-MLC` | 5001 MB | Computer only, and only if you choose it. |
+
+Gemma 2 2B (`gemma-2-2b-it-q4f16_1-MLC`) is in the same library at 1895 MB and is not marked low-resource. It also requires `shader-f16`. It is not offered. The 1024-token Gemma build is smaller but too short for counseling context.
+
+iOS can still drop a model under memory pressure. The app asks the browser to persist storage and says so when that request is denied. A reload after a crash keeps the sign-in session and switches a model that died mid-download to the smaller one. Clearing a chat does not unload the model or delete the profile.
 
 Sizes are the published MLC packages (weights) plus a small runtime library. A phone with tight memory should use the smaller model. The download screen can wait for Wi-Fi when the browser reports a cellular connection.
 
@@ -77,19 +84,21 @@ The Vite `base` path is `/araha-counselor/` so asset URLs match that project sit
 
 ## Custom domain later
 
-When Arahasoft publishes this on its own domain at the site root:
+`counselor.arahasoft.com` is the intended future address. This repo does not change DNS, and production stays on GitHub Pages until a separate release.
 
-1. Point DNS at GitHub Pages (usually a `CNAME` or `A`/`AAAA` records as GitHub documents).
-2. Build with the site at `/`:
+The Vite `base` is `/araha-counselor/` unless `VITE_BASE=/` is set. The service worker scope is `./`, so a root-domain build stays at `/` and the project site stays under `/araha-counselor/`. Do not ship both from one deploy.
 
-   ```bash
-   VITE_BASE=/ npm run build
-   ```
+When that domain is actually pointed at Pages:
 
-3. Add the domain in a `public/CNAME` file and in the GitHub Pages custom-domain setting.
-4. Change the default in `vite.config.js` if every deploy should use `/`.
+1. Confirm DNS with the records GitHub Pages asks for.
+2. Build with `VITE_BASE=/ npm run build`.
+3. Add `public/CNAME` and the Pages custom-domain setting in that same release.
 
-A project-site base path and a custom domain at the root cannot be the same build. Use one base per deploy.
+IndexedDB, the encrypted profile, and the WebLLM cache belong to the current origin. Opening a new domain starts empty. Export a JSON backup from More, then Import it there. The app cannot copy data across origins by itself.
+
+Photo text recognition uses tesseract.js in the browser. The first run may download a public English language file from jsDelivr. The photo is not uploaded. Handwriting and math are often wrong. Voice input is off: there is no on-device speech model here, and the app does not call browser or cloud dictation.
+
+Email my parents is a `mailto:` link. It does not attach the PDF. Share or download the PDF separately. Checklist templates are not real deadlines.
 
 ## Theme
 
@@ -109,5 +118,6 @@ The choice is stored in `localStorage` under `ac-theme` (`auto`, `light`, or `da
 - Reminders appear inside the app. There is no server to push a notification while the app is closed.
 - The parent email opens the student's mail app. Very long letters can be trimmed by some mail apps; the PDF is the full report.
 - Sharing the PDF as an attachment depends on `navigator.canShare({ files })`. Otherwise the app downloads the file.
-- The on-device model is large and needs a GPU. Weaker devices should use the 1B fallback or skip AI.
+- The on-device model is large and needs a GPU. Phones stay on the 1B model unless a larger one is explicitly chosen, and 7B/8B models are not offered on a phone.
+- This copy was not run on iPhone hardware. Memory limits above are the WebLLM config, not a device measurement.
 - Password recovery and cloud sync are intentionally not included.

@@ -1,7 +1,7 @@
 import { h, toast, confirmBox } from "../dom.js";
 import { shell } from "../shell.js";
 import { session, update } from "../session.js";
-import { MODELS, connectionInfo, crashNote, currentModelId, deviceHints, forgetModel, formatBytes, loadModel, modelCached, offeredModels, prefersSmallModel, unloadModel, webgpuStatus } from "../ai.js";
+import { MODELS, connectionInfo, crashNote, currentModelId, deviceHints, forgetModel, formatBytes, loadModel, modelCached, offeredModels, prefersSmallModel, storagePersisted, unloadModel, webgpuStatus } from "../ai.js";
 
 export function mountModel(root) {
   const view = shell(root, { title: "On-device AI", tab: "more", back: "/settings" });
@@ -19,8 +19,11 @@ async function paint(host) {
   const note = crashNote();
   if (note) host.append(h("section", { class: "card notice", "data-testid": "model-crash" }, [h("p", {}, note)]));
   if (prefersSmallModel(deviceHints())) {
-    host.append(h("p", { class: "hint" }, "This phone uses the smaller model. The 1.7 GB model is for a computer."));
+    host.append(h("p", { class: "hint" }, "This phone starts on the smallest model. A 7B or 8B model is not offered here. These figures come from the WebLLM config, not from a test on this phone."));
   }
+  host.append(h("p", { class: "hint" }, storagePersisted === false
+    ? "This browser refused persistent storage. It may delete the saved model later. Your profile is separate and is not deleted with the model."
+    : "Downloading is different from opening a saved copy. The browser can still drop the model file. Your profile stays in the encrypted account."));
   const gpu = await webgpuStatus();
   if (!gpu.ok) {
     host.append(h("section", { class: "card notice", "data-testid": "webgpu-missing" }, [
@@ -73,7 +76,7 @@ async function paint(host) {
       model.recommended ? h("span", { class: "chip", style: { "--accent": "#F2B33D" } }, "Recommended") : null,
       selected ? h("span", { class: "chip", style: { "--accent": "#1B5CEB" } }, "Selected") : null,
       h("p", {}, model.blurb),
-      h("p", { class: "hint" }, `${formatBytes(model.bytes)} download · about ${(model.vramMB / 1000).toFixed(1)} GB GPU memory${cached ? " · saved on this device" : ""}`),
+      h("p", { class: "hint" }, `${formatBytes(model.bytes) ? `${formatBytes(model.bytes)} download · ` : "Download size is shown while it loads. "}WebLLM lists about ${(model.vramMB / 1000).toFixed(1)} GB GPU memory${model.recommended ? "" : ""}${cached ? " · saved on this device" : ""}`),
       h("button", {
         type: "button",
         class: "btn gold",

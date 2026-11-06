@@ -3,6 +3,7 @@ import { shell } from "../shell.js";
 import { session, update } from "../session.js";
 import { AREAS, COURSE_STATUS, LEVELS, pushActivity, uid } from "../data.js";
 import { gradeLabel, statusLabel } from "../format.js";
+import { nextYearNotes } from "../counsel.js";
 
 export function mountPlan(root) {
   const view = shell(root, { title: "Four-year plan", tab: "plan" });
@@ -21,8 +22,44 @@ export function mountPlan(root) {
     );
   };
   paint();
-  view.content.append(host);
+  view.content.append(host, offerings());
   return { unmount: view.destroy };
+}
+
+function offerings() {
+  const host = h("section", { class: "card stack" });
+  const paint = () => {
+    const notes = nextYearNotes(session.data);
+    const name = txt({ placeholder: "Course your school actually lists" });
+    const level = select(LEVELS.map((value) => [value, value]), "Regular");
+    const form = h("form", { class: "stack" }, [
+      h("h2", {}, "School courses you entered"),
+      h("p", { class: "hint" }, "ARAHA does not know your catalog. Add a course only after you see it offered. Uploading a file is not available; type the name."),
+      ...notes.items.map((item) => h("p", {}, [h("b", {}, `${item.title}. `), item.detail])),
+      ...session.data.offerings.map((row, index) => h("p", {}, [
+        `${row.name} · ${row.level}`,
+        " ",
+        h("button", { type: "button", class: "btn ghost", onClick: () => {
+          update((data) => { data.offerings.splice(index, 1); });
+          paint();
+        } }, "Remove"),
+      ])),
+      field("Course", name),
+      field("Level", level),
+      h("button", { class: "btn primary", type: "submit" }, "Add school course"),
+    ]);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!name.value.trim()) return;
+      update((data) => {
+        data.offerings.unshift({ id: uid(), name: name.value.trim(), level: level.value, grades: "", notes: "" });
+      });
+      paint();
+    });
+    host.replaceChildren(form);
+  };
+  paint();
+  return host;
 }
 
 function courseCard(year, course, index, paint) {
