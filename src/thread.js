@@ -5,6 +5,7 @@ import { uid, pushActivity } from "./data.js";
 import { session, update } from "./session.js";
 import { navigate } from "./nav.js";
 import { complete, currentModelId, fitModelChoice, loadModel, modelCached, resetConversation, stopGeneration } from "./ai.js";
+import { captureControls } from "./capture.js";
 
 export function mountThread(parent, spec) {
   const log = h("div", { class: "chat", "data-testid": "chat-log" });
@@ -61,6 +62,7 @@ export function mountThread(parent, spec) {
     try {
       if (!ready) {
         const cached = await modelCached(modelId);
+        pending.textContent = cached ? "Opening the saved model…" : "Downloading the model…";
         if (!cached) {
           pending.className = "msg err";
           pending.textContent = "The on-device model isn't downloaded yet. You can keep writing without it.";
@@ -122,6 +124,7 @@ export function mountThread(parent, spec) {
     h("div", { class: "composer" }, [
       h("div", { class: "composer-in" }, [box, send]),
       h("div", { class: "composer-tools" }, [
+        captureControls(box),
         h("button", {
           type: "button",
           class: "btn ghost",

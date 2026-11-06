@@ -44,7 +44,7 @@ export function profileGaps(profile) {
   if (!profile.name.trim()) gaps.push("your name");
   if (!profile.grade) gaps.push("your grade");
   if (!profile.school.trim()) gaps.push("your school");
-  if (!profile.parent1Email.trim() && !profile.parent2Email.trim()) gaps.push("a parent email");
+  if (!profile.goalChoice && !profile.goals.trim()) gaps.push("a goal");
   return gaps;
 }
 

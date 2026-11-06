@@ -6,6 +6,7 @@ import { syncThemeColor, watchSystemTheme } from "./theme.js";
 import { noteInterruptedLoad } from "./ai.js";
 import { toast } from "./dom.js";
 import { initUpdates, mountUpdateBanner } from "./updates.js";
+import { bindKeyboardInset } from "./layout.js";
 
 const splash = document.getElementById("splash");
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -27,6 +28,7 @@ document.querySelector("[data-testid=skip-splash]")?.addEventListener("click", c
 window.setTimeout(closeSplash, reduced ? 280 : 3300);
 
 watchSystemTheme();
+bindKeyboardInset();
 mountUpdateBanner();
 initUpdates();
 const interrupted = noteInterruptedLoad();

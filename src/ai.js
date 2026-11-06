@@ -1,22 +1,58 @@
 export const LARGE_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 export const SMALL_ID = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
+export const PHONE_STEP_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+export const DESKTOP_7B_ID = "Qwen2.5-7B-Instruct-q4f16_1-MLC";
+export const DESKTOP_8B_ID = "Llama-3.1-8B-Instruct-q4f16_1-MLC";
 const LOAD_FLAG = "ac-model-load";
 const TOO_BIG_KEY = "ac-model-too-big";
 
+// vramMB is vram_required_MB from @mlc-ai/web-llm 0.2.87 prebuiltAppConfig.
+// Download bytes are filled only where this app already recorded the MLC package size.
 export const MODELS = [
-  {
-    id: LARGE_ID,
-    name: "Qwen 2.5 3B Instruct",
-    bytes: 1_736_187_904,
-    vramMB: 2505,
-    blurb: "Best on a computer. About 1.7 GB to download and about 2.5 GB of GPU memory.",
-  },
   {
     id: SMALL_ID,
     name: "Llama 3.2 1B Instruct",
+    tier: "phone",
     bytes: 695_242_752,
-    vramMB: 879,
-    blurb: "The phone model. About 700 MB to download and about 0.9 GB of GPU memory.",
+    vramMB: 879.04,
+    context: 2048,
+    blurb: "Automatic phone model. WebLLM lists about 879 MB of GPU memory for the 4096-token build. ARAHA loads it with a 2048-token cap. About 700 MB to download.",
+  },
+  {
+    id: PHONE_STEP_ID,
+    name: "Qwen 2.5 1.5B Instruct",
+    tier: "phone-extra",
+    bytes: null,
+    vramMB: 1629.75,
+    context: 2048,
+    blurb: "Optional phone step up. WebLLM lists about 1.6 GB of GPU memory and marks it low-resource. Not selected automatically. Gemma 2 2B is not offered: its 4k build needs about 1.9 GB and is not marked low-resource.",
+  },
+  {
+    id: LARGE_ID,
+    name: "Qwen 2.5 3B Instruct",
+    tier: "desktop",
+    bytes: 1_736_187_904,
+    vramMB: 2504.76,
+    context: 4096,
+    blurb: "Automatic computer model. WebLLM lists about 2.5 GB of GPU memory. About 1.7 GB to download. A phone does not get this unless you explicitly choose it.",
+  },
+  {
+    id: DESKTOP_7B_ID,
+    name: "Qwen 2.5 7B Instruct",
+    tier: "large",
+    bytes: null,
+    vramMB: 5106.67,
+    context: 4096,
+    blurb: "Explicit computer choice only. WebLLM lists about 5.1 GB of GPU memory and does not mark it low-resource. It is never downloaded automatically.",
+  },
+  {
+    id: DESKTOP_8B_ID,
+    name: "Llama 3.1 8B Instruct",
+    tier: "large",
+    bytes: null,
+    vramMB: 5001,
+    context: 4096,
+    blurb: "Explicit computer choice only. WebLLM lists about 5.0 GB of GPU memory and does not mark it low-resource. It is never downloaded automatically.",
   },
 ];
 
@@ -31,12 +67,27 @@ export function prefersSmallModel(hints = {}) {
   return false;
 }
 
+export function modelTier(id) {
+  return MODELS.find((model) => model.id === id)?.tier || "";
+}
+
+export function contextBudget(smallDevice) {
+  return smallDevice
+    ? { messages: 4, chars: 900, maxTokens: 320 }
+    : { messages: 6, chars: 2000, maxTokens: 640 };
+}
+
 export function chooseModelId({ savedId = "", userPick = false, tooBig = [], smallDevice = false } = {}) {
   const blocked = new Set(tooBig);
-  if (userPick && savedId && !blocked.has(savedId)) return savedId;
-  if (smallDevice || blocked.has(LARGE_ID)) return SMALL_ID;
-  if (savedId && !blocked.has(savedId)) return savedId;
-  return LARGE_ID;
+  const tier = modelTier(savedId);
+  const known = Boolean(tier) && savedId && !blocked.has(savedId);
+  if (userPick && known) {
+    if (smallDevice && tier === "large") return blocked.has(SMALL_ID) ? PHONE_STEP_ID : SMALL_ID;
+    return savedId;
+  }
+  if (smallDevice) return blocked.has(SMALL_ID) ? PHONE_STEP_ID : SMALL_ID;
+  if (known && tier !== "large") return savedId;
+  return blocked.has(LARGE_ID) ? SMALL_ID : LARGE_ID;
 }
 
 export function deviceHints(nav = globalThis.navigator, win = globalThis) {
@@ -99,7 +150,7 @@ export function offeredModels() {
   const blocked = new Set(readTooBig());
   return MODELS.filter((model) => {
     if (blocked.has(model.id)) return false;
-    if (small && model.id === LARGE_ID) return false;
+    if (small && (model.tier === "desktop" || model.tier === "large")) return false;
     return true;
   }).map((model) => ({
     ...model,
@@ -132,9 +183,12 @@ export function currentModelId() {
 }
 
 export function formatBytes(bytes) {
+  if (!bytes) return "";
   if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
   return `${Math.round(bytes / 1e6)} MB`;
 }
+
+export let storagePersisted = null;
 
 export async function webgpuStatus() {
   if (!navigator.gpu) {
@@ -209,6 +263,7 @@ async function startLoad(modelId, onProgress) {
   const store = storage();
   store?.setItem(LOAD_FLAG, modelId);
   if (currentId && currentId !== modelId) await unloadModel();
+  const chatOpts = { context_window_size: MODELS.find((model) => model.id === modelId)?.context || 2048 };
   const { CreateWebWorkerMLCEngine, CreateMLCEngine } = await lib();
   const config = {
     initProgressCallback: (report) => {
@@ -221,15 +276,15 @@ async function startLoad(modelId, onProgress) {
   };
   try {
     if (navigator.storage?.persist) {
-      try { await navigator.storage.persist(); } catch { /* optional */ }
+      try { storagePersisted = await navigator.storage.persist(); } catch { storagePersisted = false; }
     }
     worker = new Worker(new URL("./ai-worker.js", import.meta.url), { type: "module" });
-    engine = await CreateWebWorkerMLCEngine(worker, modelId, config);
+    engine = await CreateWebWorkerMLCEngine(worker, modelId, config, chatOpts);
   } catch (error) {
     try { worker?.terminate?.(); } catch { /* ignore */ }
     worker = null;
     try {
-      engine = await CreateMLCEngine(modelId, config);
+      engine = await CreateMLCEngine(modelId, config, chatOpts);
     } catch (fallback) {
       engine = null;
       store?.removeItem(LOAD_FLAG);
@@ -247,6 +302,10 @@ export async function useConversation(key) {
   conversationKey = key;
   if (!engine || !previous) return;
   try { await engine.resetChat(); } catch { /* keep the weights loaded */ }
+}
+
+export function isGenerating() {
+  return Boolean(inflight);
 }
 
 export async function stopGeneration() {
@@ -290,14 +349,15 @@ async function generate({ system, messages, onDelta, maxTokens, threadKey, mine 
   if (mine !== generationEpoch) return "";
   await useConversation(threadKey);
   if (mine !== generationEpoch) return "";
-  const history = messages.slice(-8).map((message) => ({
+  const budget = contextBudget(prefersSmallModel(deviceHints()));
+  const history = messages.slice(-budget.messages).map((message) => ({
     role: message.role,
-    content: String(message.content || "").slice(0, 4000),
+    content: String(message.content || "").slice(0, budget.chars),
   }));
   const payload = {
     messages: [{ role: "system", content: system }, ...history],
     temperature: 0.6,
-    max_tokens: maxTokens,
+    max_tokens: Math.min(maxTokens, budget.maxTokens),
     stream: true,
   };
   let text = "";

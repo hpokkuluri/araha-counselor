@@ -86,6 +86,7 @@ export function mountCollection(parent, spec) {
         type: entry.type || "text",
         placeholder: entry.placeholder || "",
         value: value || "",
+        list: entry.list || null,
         onInput: onChange ? (event) => onChange(event.target.value) : undefined,
       });
     }

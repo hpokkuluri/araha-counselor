@@ -24,6 +24,29 @@ export const ESSAY_KINDS = [
   ["scholarship", "Scholarship"],
   ["other", "Other"],
 ];
+export const GOAL_CHOICES = [
+  ["", "Select a direction"],
+  ["undecided", "Undecided"],
+  ["medicine", "Medicine"],
+  ["engineering", "Engineering"],
+  ["computing", "Computing"],
+  ["business", "Business"],
+  ["law", "Law"],
+  ["arts", "Arts and design"],
+  ["education", "Education"],
+  ["science", "Science"],
+  ["trades", "Trades and technical"],
+  ["other", "Something else"],
+];
+export const GPA_SCALES = [["", "Scale not set"], ["4", "4.0"], ["5", "5.0"], ["100", "100-point"], ["other", "Other"]];
+export const GPA_WEIGHT = [["", "Not set"], ["unweighted", "Unweighted"], ["weighted", "Weighted"]];
+export const COLLEGE_BANDS = [
+  ["unsure", "Not sure — my label"],
+  ["reach", "Reach — my label"],
+  ["target", "Target — my label"],
+  ["likely", "Likely — my label"],
+];
+export const REC_STATUS = [["considering", "Might ask"], ["asked", "Asked"], ["confirmed", "They agreed"], ["sent", "They sent it"]];
 export const RECOMMENDED_MODEL = "";
 
 const LIMITS = { short: 160, mid: 400, long: 8000, list: 80, messages: 80 };
@@ -46,6 +69,9 @@ export function emptyData() {
     subjects: [],
     counselorMessages: [],
     activity: [],
+    checkins: [],
+    recommendations: [],
+    offerings: [],
     shareNote: "",
     parentPin: null,
     settings: { wifiOnly: true, modelId: "", modelPick: "auto" },
@@ -59,7 +85,13 @@ function emptyProfile() {
     name: "",
     grade: "",
     school: "",
+    town: "",
+    region: "",
     gpa: "",
+    gpaScale: "",
+    gpaWeighted: "",
+    goalChoice: "",
+    intakeDone: false,
     classes: [],
     tests: [],
     activities: "",
@@ -100,16 +132,24 @@ export function normalizeData(raw) {
       name: str(profile.name, LIMITS.short),
       grade: oneOf(String(profile.grade || ""), ["9", "10", "11", "12"], ""),
       school: str(profile.school, LIMITS.short),
+      town: str(profile.town, LIMITS.short),
+      region: str(profile.region, 40),
       gpa: str(profile.gpa, 40),
+      gpaScale: oneOf(String(profile.gpaScale || ""), GPA_SCALES.map(([id]) => id), ""),
+      gpaWeighted: oneOf(String(profile.gpaWeighted || ""), GPA_WEIGHT.map(([id]) => id), ""),
+      goalChoice: oneOf(String(profile.goalChoice || ""), GOAL_CHOICES.map(([id]) => id), ""),
+      intakeDone: Boolean(profile.intakeDone),
       classes: list(profile.classes, (row) => row && ({
         id: str(row.id, 80) || uid(),
         name: str(row.name, LIMITS.short),
+        level: oneOf(row.level, LEVELS, "Regular"),
         grade: str(row.grade, 20),
       })),
       tests: list(profile.tests, (row) => row && ({
         id: str(row.id, 80) || uid(),
         name: str(row.name, LIMITS.short),
         score: str(row.score, 40),
+        sections: str(row.sections, LIMITS.mid),
         date: str(row.date, 20),
       })),
       activities: str(profile.activities, LIMITS.long),
@@ -134,6 +174,12 @@ export function normalizeData(raw) {
       location: str(row.location, LIMITS.short),
       majors: str(row.majors, LIMITS.mid),
       status: oneOf(row.status, COLLEGE_STATUS.map(([id]) => id), "researching"),
+      band: oneOf(row.band, COLLEGE_BANDS.map(([id]) => id), "unsure"),
+      requirements: str(row.requirements, LIMITS.long),
+      testPolicy: str(row.testPolicy, LIMITS.mid),
+      deadline: str(row.deadline, 20),
+      source: str(row.source, LIMITS.mid),
+      lastChecked: str(row.lastChecked, 20),
       notes: str(row.notes, LIMITS.long),
     })),
     careers: list(d.careers, (row) => row && ({
@@ -157,6 +203,8 @@ export function normalizeData(raw) {
       category: oneOf(row.category, DEADLINE_CATS, "Other"),
       notes: str(row.notes, LIMITS.long),
       done: Boolean(row.done),
+      verified: Boolean(row.verified),
+      source: str(row.source, LIMITS.mid),
     })),
     essays: list(d.essays, (row) => row && ({
       id: str(row.id, 80) || uid(),
@@ -167,6 +215,15 @@ export function normalizeData(raw) {
       outline: str(row.outline, LIMITS.long),
       draft: str(row.draft, 20000),
       feedback: str(row.feedback, 20000),
+      suggestion: str(row.suggestion, 4000),
+      collegeName: str(row.collegeName, LIMITS.short),
+      essayDeadline: str(row.essayDeadline, 20),
+      versions: list(row.versions, (version) => version && ({
+        id: str(version.id, 80) || uid(),
+        at: str(version.at, 40),
+        draft: str(version.draft, 20000),
+        note: str(version.note, LIMITS.short),
+      }), 12),
       updatedAt: str(row.updatedAt, 40),
     })),
     subjects: list(d.subjects, (row) => row && ({
@@ -174,9 +231,33 @@ export function normalizeData(raw) {
       name: str(row.name, LIMITS.short),
       notes: str(row.notes, LIMITS.long),
       messages: list(row.messages, message, LIMITS.messages),
+      cards: list(row.cards, (card) => card && ({
+        id: str(card.id, 80) || uid(),
+        front: str(card.front, LIMITS.mid),
+        back: str(card.back, LIMITS.long),
+      }), 80),
       createdAt: str(row.createdAt, 40),
     })),
     counselorMessages: list(d.counselorMessages, message, LIMITS.messages),
+    checkins: list(d.checkins, (row) => row && ({
+      id: str(row.id, 80) || uid(),
+      at: str(row.at, 40),
+      note: str(row.note, LIMITS.long),
+    }), 52),
+    recommendations: list(d.recommendations, (row) => row && ({
+      id: str(row.id, 80) || uid(),
+      name: str(row.name, LIMITS.short),
+      role: str(row.role, LIMITS.short),
+      status: oneOf(row.status, REC_STATUS.map(([id]) => id), "considering"),
+      notes: str(row.notes, LIMITS.long),
+    })),
+    offerings: list(d.offerings, (row) => row && ({
+      id: str(row.id, 80) || uid(),
+      name: str(row.name, LIMITS.short),
+      level: oneOf(row.level, LEVELS, "Regular"),
+      grades: str(row.grades, 40),
+      notes: str(row.notes, LIMITS.mid),
+    })),
     activity: list(d.activity, (row) => row && row.kind && ({
       id: str(row.id, 80) || uid(),
       at: str(row.at, 40),

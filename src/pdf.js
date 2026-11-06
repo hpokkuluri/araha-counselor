@@ -249,7 +249,8 @@ export async function buildPdf(data) {
   section("Profile");
   paragraph(`School: ${profile.school.trim() || "Not added yet"}`);
   paragraph(`Grade: ${gradeLabel(profile.grade) || "Not added yet"}`);
-  paragraph(`GPA: ${profile.gpa.trim() || "Not added yet"}`);
+  paragraph(`GPA: ${profile.gpa.trim() || "Not added yet"}${profile.gpaScale ? ` (${profile.gpaScale})` : ""}`);
+  if (profile.goalChoice || profile.goals?.trim()) paragraph(`Direction: ${[profile.goalChoice, profile.goals].filter(Boolean).join(" — ")}`);
   const classes = profile.classes.filter((row) => row.name.trim());
   if (classes.length) {
     y += 4;

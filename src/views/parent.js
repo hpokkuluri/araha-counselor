@@ -27,8 +27,8 @@ function setPin(paint) {
   const pin = txt({ inputmode: "numeric", maxlength: "6", placeholder: "4 to 6 digits", "data-testid": "pin-new", autocomplete: "new-password" });
   const again = txt({ inputmode: "numeric", maxlength: "6", placeholder: "Repeat the PIN", "data-testid": "pin-again", autocomplete: "new-password" });
   const form = h("form", { class: "card stack" }, [
-    h("h2", {}, "Choose a parent PIN"),
-    h("p", { class: "hint" }, "The PIN opens this summary on the student's device. It is not a separate account, and Arahasoft never sees it."),
+    h("h2", {}, "Set parent PIN"),
+    h("p", { class: "hint" }, "First time on this phone: choose a PIN here. It only opens the parent summary on the student's device. It is not a parent login, it does not cover another child, and it does not follow you to a different phone."),
     field("PIN", pin),
     field("Confirm PIN", again),
     h("button", { class: "btn gold wide", type: "submit" }, "Save PIN"),

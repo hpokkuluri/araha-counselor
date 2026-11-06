@@ -3,6 +3,7 @@ import { shell } from "../shell.js";
 import { mountThread } from "../thread.js";
 import { session } from "../session.js";
 import { counselorSystem } from "../prompts.js";
+import { quickAsks } from "../counsel.js";
 
 export function mountChat(root, draft = "") {
   const view = shell(root, { title: "Counselor", tab: "home", back: "/home", tabs: false });
@@ -11,11 +12,7 @@ export function mountChat(root, draft = "") {
     intro: "Ask about courses, colleges, careers, or scholarships. The counselor uses your profile and will not invent facts or write your essays.",
     placeholder: "Ask your counselor",
     draft,
-    starters: [
-      "What should I think about for 11th grade courses?",
-      "How do I compare two colleges?",
-      "What questions should I ask about a career?",
-    ],
+    starters: quickAsks(session.data.profile.grade, session.data.profile.goalChoice),
     key: "counselor",
     messages: () => session.data.counselorMessages,
     push: (data, message) => {
