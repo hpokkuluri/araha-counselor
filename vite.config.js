@@ -10,7 +10,7 @@ const builtAt = new Date().toISOString();
 export default defineConfig({
   base,
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || "1.0.0"),
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || "2.0.0"),
     __BUILD_TIME__: JSON.stringify(builtAt),
   },
   plugins: [
@@ -26,7 +26,7 @@ export default defineConfig({
       manifest: {
         name: "ARAHA Counselor",
         short_name: "ARAHA Counselor",
-        description: "Private, offline student counselor by Arahasoft. Your data stays on this device.",
+        description: "ARAHA Counselor 2.0. Private, offline student counselor by Arahasoft. Your data stays on this device.",
         theme_color: "#0E1B3D",
         background_color: "#0E1B3D",
         display: "standalone",

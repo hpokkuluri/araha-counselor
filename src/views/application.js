@@ -2,7 +2,7 @@ import { h, field, txt, area, toast } from "../dom.js";
 import { shell } from "../shell.js";
 import { session, update } from "../session.js";
 import { uid } from "../data.js";
-import { readinessItems } from "../readiness.js";
+import { applicationSections, readinessItems } from "../readiness.js";
 import { captureControls } from "../capture.js";
 import { complete, currentModelId, fitModelChoice, loadModel, modelCached } from "../ai.js";
 import { interviewSystem } from "../prompts.js";
@@ -22,6 +22,7 @@ export function mountApplication(root) {
         h("ul", { class: "plain" }, report.items.map((item) => h("li", {}, `${item.done ? "Done" : "Open"} · ${item.label}`))),
         h("p", { class: "hint" }, "Readiness means the tasks above are filled in. It is not an admission score and not a probability."),
       ]),
+      briefCard(session.data),
       h("section", { class: "card stack" }, [
         h("h2", {}, "From your profile"),
         h("p", {}, session.data.profile.name.trim() || "Name not added yet."),
@@ -38,6 +39,20 @@ export function mountApplication(root) {
   };
   paint();
   return { unmount: view.destroy };
+}
+
+function briefCard(data) {
+  const brief = applicationSections(data);
+  const block = (title, rows, empty) => h("div", { class: "stack" }, [
+    h("h3", {}, title),
+    rows.length ? h("ul", { class: "plain" }, rows.map((row) => h("li", {}, row))) : h("p", { class: "hint" }, empty),
+  ]);
+  return h("section", { class: "card stack", "data-testid": "application-brief" }, [
+    h("h2", {}, "Evidence, gaps, and next actions"),
+    block("Evidence already entered", brief.evidence, "Nothing from the profile is filled in yet."),
+    block("Gaps", brief.gaps, "No open profile tasks."),
+    block("Actions", brief.actions, "No essay, recommendation, or milestone is waiting."),
+  ]);
 }
 
 function recommendations(paint) {

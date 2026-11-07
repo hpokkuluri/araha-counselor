@@ -7,6 +7,9 @@ import { mountThread } from "../thread.js";
 import { tutorSystem } from "../prompts.js";
 import { evaluateExpression } from "../calc.js";
 import { PRACTICE_NOTE, practiceFor } from "../practice.js";
+import { parseCards, parseQuiz } from "../generated.js";
+import { weakerPracticeFocus } from "../counsel.js";
+import { complete, currentModelId, fitModelChoice, loadModel, modelCached } from "../ai.js";
 
 export function mountStudy(root) {
   const view = shell(root, { title: "Subjects", tab: "study" });
@@ -183,9 +186,104 @@ function studyTools(id, subject) {
   };
   ask();
 
+  const focus = weakerPracticeFocus(session.data.profile.tests);
+  const topic = txt({ placeholder: "Topic, e.g. linear equations", "data-testid": "quiz-topic" });
+  const made = h("div", { class: "stack" });
+  const generator = h("section", { class: "card stack" }, [
+    h("h2", {}, "Quiz and cards from the on-device model"),
+    h("p", { class: "hint" }, focus.reason),
+    h("p", { class: "hint" }, "Questions are original. They are not official SAT, PSAT, or AP items. The model runs on this device."),
+    field("Topic", topic),
+    h("div", { class: "composer-tools" }, [
+      h("button", { type: "button", class: "btn primary", onClick: () => makePractice(id, subject, topic, made, "quiz", focus.focus) }, "Make a quiz"),
+      h("button", { type: "button", class: "btn ghost", onClick: () => makePractice(id, subject, topic, made, "cards", focus.focus) }, "Make flashcards"),
+    ]),
+    made,
+  ]);
+
   return h("div", { class: "stack" }, [
     calc,
+    generator,
     h("section", { class: "card stack" }, [cardForm]),
-    h("section", { class: "card stack" }, [h("h2", {}, "Practice"), quizHost]),
+    h("section", { class: "card stack" }, [h("h2", {}, "Offline original practice"), h("p", { class: "hint" }, "These six items stay available when the model is not loaded."), quizHost]),
   ]);
+}
+
+async function makePractice(id, subject, topic, host, kind, focus) {
+  const label = topic.value.trim() || subject()?.name || "this class";
+  host.replaceChildren(h("p", { class: "hint" }, "Working on this device…"));
+  try {
+    const modelId = fitModelChoice(session.data.settings);
+    if (currentModelId() !== modelId) {
+      if (!await modelCached(modelId)) {
+        host.replaceChildren(h("p", {}, "Download the on-device model first. The offline practice below still works."));
+        return;
+      }
+      await loadModel(modelId);
+    }
+    const focusLine = focus ? `Lean the items toward ${focus} because that section was lower in the scores the student typed.` : "Do not assume a weaker test section.";
+    const reply = await complete({
+      system: kind === "quiz"
+        ? `Write 3 original multiple-choice questions about ${label} for a high school student. ${focusLine} Do not copy official SAT, PSAT, ACT, or AP items. Use this exact shape for each item:\nQ: question\nA: choice\nB: choice\nC: choice\nD: choice\nAnswer: B\nWhy: one sentence\n---\n`
+        : `Write 4 original flashcards about ${label}. Use this exact shape:\nFront: term or question\nBack: answer and a one-sentence explanation\n---\nDo not copy official test items.`,
+      messages: [{ role: "user", content: `Topic: ${label}. Profile classes: ${(session.data.profile.classes || []).map((row) => row.name).filter(Boolean).join(", ") || "none listed"}.` }],
+      maxTokens: 500,
+      threadKey: `study:${id}:${kind}`,
+    });
+    if (kind === "quiz") {
+      const quizzes = parseQuiz(reply);
+      if (!quizzes.length) {
+        host.replaceChildren(h("p", {}, "The model did not return a quiz that could be saved. Try again. Nothing was marked correct by guessing."));
+        return;
+      }
+      update((data) => {
+        const item = data.subjects.find((row) => row.id === id);
+        if (!item) return;
+        if (!item.quizzes) item.quizzes = [];
+        for (const quiz of quizzes) item.quizzes.unshift({ id: uid(), topic: label, ...quiz });
+        item.quizzes.splice(30);
+      });
+      let index = 0;
+      let correct = 0;
+      const saved = quizzes;
+      const draw = () => {
+        const quiz = saved[index];
+        if (!quiz) {
+          host.replaceChildren(h("p", {}, `Saved on this device. ${correct} of ${saved.length} matched the model's answer key.`));
+          return;
+        }
+        host.replaceChildren(
+          h("p", {}, quiz.prompt),
+          ...quiz.choices.map((choice, choiceIndex) => h("button", {
+            type: "button",
+            class: "btn ghost",
+            onClick: () => {
+              const ok = choiceIndex === quiz.answer;
+              if (ok) correct += 1;
+              toast(ok ? quiz.explain || "That matches the key." : (quiz.explain || "Not the keyed answer."));
+              index += 1;
+              draw();
+            },
+          }, choice)),
+        );
+      };
+      draw();
+      return;
+    }
+    const cards = parseCards(reply);
+    if (!cards.length) {
+      host.replaceChildren(h("p", {}, "The model did not return flashcards that could be saved. Try again."));
+      return;
+    }
+    update((data) => {
+      const item = data.subjects.find((row) => row.id === id);
+      if (!item) return;
+      if (!item.cards) item.cards = [];
+      for (const card of cards) item.cards.unshift({ id: uid(), ...card });
+      item.cards.splice(80);
+    });
+    host.replaceChildren(h("p", {}, `Saved ${cards.length} flashcards on this device.`));
+  } catch (error) {
+    host.replaceChildren(h("p", {}, error.message || "The on-device model did not finish."));
+  }
 }

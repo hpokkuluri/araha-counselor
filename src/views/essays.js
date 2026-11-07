@@ -181,6 +181,8 @@ export function mountEssay(root, id) {
   showSuggestion();
   const suggest = h("button", { type: "button", class: "btn ghost" }, "Suggest a small edit");
   suggest.addEventListener("click", () => runCoach(id, suggest, showSuggestion, "suggestion"));
+  const outlineBtn = h("button", { type: "button", class: "btn ghost", "data-testid": "essay-outline" }, "Build an outline on this device");
+  outlineBtn.addEventListener("click", () => runCoach(id, outlineBtn, () => { outline.value = session.data.essays.find((row) => row.id === id)?.outline || outline.value; }, "outline"));
   const coach = h("button", { type: "button", class: "btn gold wide", "data-testid": "essay-coach" }, "Get coach feedback");
   coach.addEventListener("click", () => runCoach(id, coach, showFeedback));
 
@@ -198,6 +200,7 @@ export function mountEssay(root, id) {
     count,
     saveVersion,
     versions,
+    outlineBtn,
     coach,
     suggest,
     suggestion,
@@ -231,8 +234,9 @@ async function runCoach(id, button, showFeedback, mode = "coach") {
       const item = data.essays.find((row) => row.id === id);
       if (!item) return;
       if (mode === "suggestion") item.suggestion = reply;
+      else if (mode === "outline") item.outline = reply;
       else item.feedback = reply;
-      pushActivity(data, "essay", mode === "suggestion" ? "Asked for an optional edit" : "Asked the essay coach");
+      pushActivity(data, "essay", mode === "outline" ? "Asked for an outline" : mode === "suggestion" ? "Asked for an optional edit" : "Asked the essay coach");
     });
     showFeedback();
   } catch (error) {
@@ -247,7 +251,7 @@ async function completeSafe(data, essay, mode) {
   const { complete } = await import("../ai.js");
   return complete({
     system: essaySystem(data, essay, mode),
-    messages: [{ role: "user", content: mode === "suggestion" ? "Suggest one small optional edit. Do not rewrite my essay." : "Review what I have. Coach me. Do not write my essay." }],
+    messages: [{ role: "user", content: mode === "suggestion" ? "Suggest one small optional edit. Do not rewrite my essay." : mode === "outline" ? "Give me an outline I can fill. Do not write the essay." : "Review what I have. Coach me. Do not write my essay." }],
     maxTokens: 500,
     threadKey: `essay:${essay.id}`,
   });

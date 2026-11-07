@@ -1,6 +1,6 @@
 # ARAHA Counselor
 
-ARAHA Counselor is a private, offline-first student counselor from Arahasoft. Version 1 is a static web app. It is free to run: there is no backend, no paid API, and no API key. The first profile you create lives only on that phone or computer.
+ARAHA Counselor 2.0 is a private, offline-first student counselor from Arahasoft. It is a static web app. It is free to run: there is no backend, no paid API, and no API key. The first profile you create lives only on that phone or computer. See `CHANGELOG.md` for what changed from 1.0.
 
 A counselor chat and subject tutors can run an open-source model in the browser. Your questions are not uploaded. If the device cannot run the model, the rest of the app still works.
 
@@ -24,7 +24,7 @@ A counselor chat and subject tutors can run an open-source model in the browser.
 - The on-device model is downloaded once from the public MLC / Hugging Face host (the model weights and a small WebGPU runtime). Chat text is not part of that request. After the download, WebLLM keeps the model in the browser cache.
 - Email is handed to the mail app already on the device (`mailto:`). The PDF is built in the browser with jsPDF. Nothing is sent to a server by this app.
 
-`src/entitlement.js` is the seam for a future Arahasoft sign-in or license check. Version 1 treats every local profile as allowed and does not make a network call there.
+`src/entitlement.js` is the seam for a future Arahasoft sign-in or license check. Version 2 treats every local profile as allowed and does not make a network call there.
 
 ## Device requirements for the AI
 
@@ -47,7 +47,7 @@ Model choices come from `@mlc-ai/web-llm` 0.2.87 `vram_required_MB`. They were n
 | Qwen 2.5 7B Instruct q4f16 | `Qwen2.5-7B-Instruct-q4f16_1-MLC` | 5107 MB | Computer only, and only if you choose it. |
 | Llama 3.1 8B Instruct q4f16 | `Llama-3.1-8B-Instruct-q4f16_1-MLC` | 5001 MB | Computer only, and only if you choose it. |
 
-Gemma 2 2B (`gemma-2-2b-it-q4f16_1-MLC`) is in the same library at 1895 MB and is not marked low-resource. It also requires `shader-f16`. It is not offered. The 1024-token Gemma build is smaller but too short for counseling context.
+Gemma 2 2B is selectable and experimental, not automatic. The offered id is `gemma-2-2b-it-q4f16_1-MLC-1k`: WebLLM lists 1583 MB, a 1024-token window, `low_resource_required: true`, and `shader-f16`. The 4096-token id `gemma-2-2b-it-q4f16_1-MLC` lists 1895 MB and is not low-resource, so it is not offered. A published VRAM number is not an iPhone measurement. Another app has run Gemma on this phone; its model id is not known here. If the experimental load fails, choose Llama 3.2 1B again.
 
 iOS can still drop a model under memory pressure. The app asks the browser to persist storage and says so when that request is denied. A reload after a crash keeps the sign-in session and switches a model that died mid-download to the smaller one. Clearing a chat does not unload the model or delete the profile.
 

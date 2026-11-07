@@ -3,6 +3,7 @@ export const SMALL_ID = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
 export const PHONE_STEP_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
 export const DESKTOP_7B_ID = "Qwen2.5-7B-Instruct-q4f16_1-MLC";
 export const DESKTOP_8B_ID = "Llama-3.1-8B-Instruct-q4f16_1-MLC";
+export const GEMMA_ID = "gemma-2-2b-it-q4f16_1-MLC-1k";
 const LOAD_FLAG = "ac-model-load";
 const TOO_BIG_KEY = "ac-model-too-big";
 
@@ -25,7 +26,16 @@ export const MODELS = [
     bytes: null,
     vramMB: 1629.75,
     context: 2048,
-    blurb: "Optional phone step up. WebLLM lists about 1.6 GB of GPU memory and marks it low-resource. Not selected automatically. Gemma 2 2B is not offered: its 4k build needs about 1.9 GB and is not marked low-resource.",
+    blurb: "Optional phone step up. WebLLM lists about 1.6 GB of GPU memory and marks it low-resource. Not selected automatically.",
+  },
+  {
+    id: GEMMA_ID,
+    name: "Gemma 2 2B Instruct (experimental, 1k)",
+    tier: "experimental",
+    bytes: null,
+    vramMB: 1583.3,
+    context: 1024,
+    blurb: "Experimental choice, not the automatic model. WebLLM 0.2.87 id gemma-2-2b-it-q4f16_1-MLC-1k lists 1583 MB GPU memory, a 1024-token window, low-resource required, and shader-f16. The 4096-token Gemma 2 2B build is listed at 1895 MB and is not low-resource, so it is not offered. Download size is shown while it loads. Another app on this iPhone has run Gemma; that app's exact build is not known here, and this option was not tested on iPhone hardware. If it fails, switch back to Llama 3.2 1B.",
   },
   {
     id: LARGE_ID,
@@ -86,7 +96,7 @@ export function chooseModelId({ savedId = "", userPick = false, tooBig = [], sma
     return savedId;
   }
   if (smallDevice) return blocked.has(SMALL_ID) ? PHONE_STEP_ID : SMALL_ID;
-  if (known && tier !== "large") return savedId;
+  if (known && tier !== "large" && tier !== "experimental") return savedId;
   return blocked.has(LARGE_ID) ? SMALL_ID : LARGE_ID;
 }
 
