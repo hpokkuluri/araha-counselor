@@ -145,3 +145,107 @@ export function deadlineTemplates() {
 export function intakeReady(profile) {
   return Boolean(profile?.intakeDone && String(profile.name || "").trim() && profile.grade);
 }
+
+const PATHWAYS = {
+  medicine: [
+    ["bio", ["biology"], "Biology", "A usual first lab science. Ask which biology course your school actually offers."],
+    ["chem", ["chemistry"], "Chemistry", "Often follows biology. Confirm the prerequisite with the school."],
+    ["phys", ["physics"], "Physics", "Ask whether it is offered and whether chemistry or algebra 2 comes first."],
+    ["math", ["algebra 2", "precalculus", "pre-calculus", "calculus"], "Algebra 2 through precalculus or calculus", "Medicine paths later use the MCAT, not the GRE. Math still matters now."],
+  ],
+  engineering: [
+    ["alg", ["algebra 1", "algebra i", "geometry"], "Algebra and geometry", "Engineering preparation usually keeps a math course every year."],
+    ["alg2", ["algebra 2", "precalculus", "pre-calculus", "calculus"], "Algebra 2, then precalculus or calculus", "Ask which of these your school teaches next."],
+    ["phys", ["physics"], "Physics", "Ask if a lab is required."],
+    ["chem", ["chemistry"], "Chemistry", "Some engineering interests use chemistry. Confirm with the school."],
+  ],
+  computing: [
+    ["math", ["algebra 2", "precalculus", "pre-calculus", "calculus"], "Algebra 2 or higher math", "Keep a math course even if a computing elective is full."],
+    ["cs", ["computer", "programming"], "A computing course", "Ask whether the school offers one. Do not assume it does."],
+  ],
+  business: [
+    ["math", ["algebra 2", "precalculus", "statistics", "stats"], "Algebra 2 or statistics", "Business interest still needs quantitative practice."],
+    ["write", ["english"], "English", "Writing is part of the path. Use the English course you are already in."],
+  ],
+  law: [
+    ["write", ["english"], "English", "Law school is after college. Writing is the high-school priority."],
+    ["hist", ["history", "government"], "History or government", "Ask which course your school offers. This is not a law-school plan."],
+  ],
+  science: [
+    ["bio", ["biology"], "Biology", "Ask for the lab sequence your school teaches."],
+    ["chem", ["chemistry"], "Chemistry", "Confirm the order. Do not invent the next course."],
+    ["math", ["algebra 2", "precalculus", "pre-calculus", "calculus"], "Algebra 2 or higher", "Match the math to the science prerequisite the school publishes."],
+  ],
+  arts: [
+    ["art", ["art", "music", "theater", "theatre", "dance"], "An arts course or a portfolio habit", "Keep making work. Ask which arts courses are on the school's list."],
+  ],
+  education: [
+    ["subject", ["english", "math", "history", "biology"], "A course in the subject you might teach", "Future teachers need a record in that subject. Ask which advanced option exists."],
+  ],
+  trades: [
+    ["cte", ["shop", "carpentry", "welding", "automotive", "culinary", "cte"], "A technical course", "Ask whether your district has a career center or dual enrollment. Do not assume it."],
+  ],
+};
+
+function coursePool(data) {
+  const names = [];
+  for (const row of data?.profile?.classes || []) if (row.name) names.push(row.name);
+  for (const year of ["9", "10", "11", "12"]) {
+    for (const row of data?.plan?.[year] || []) if (row.name) names.push(row.name);
+  }
+  for (const row of data?.offerings || []) if (row.name) names.push(row.name);
+  return names.map((name) => name.toLowerCase());
+}
+
+export function pathwayStatus(data) {
+  const goal = data?.profile?.goalChoice || "";
+  const steps = PATHWAYS[goal];
+  if (!steps) {
+    return {
+      goal,
+      note: "Choose a direction on My Profile to see a common preparation sequence. It is not your school's catalog.",
+      steps: [],
+    };
+  }
+  const pool = coursePool(data);
+  return {
+    goal,
+    note: "A common sequence, not a list of courses your school teaches. A step counts only when that wording is already on your classes, plan, or the school courses you typed.",
+    steps: steps.map(([id, names, label, why]) => ({
+      id,
+      label,
+      why,
+      status: names.some((name) => pool.some((item) => item.includes(name))) ? "listed" : "ask",
+    })),
+  };
+}
+
+export function catchUpRoadmap(data) {
+  const { low } = gradeNotes(data?.profile?.classes || []);
+  if (!low.length) return [];
+  return low.flatMap((row) => [
+    { title: `This month: four short reviews in ${row.name}`, detail: "Twenty minutes is enough. This is a habit, not a verdict on you." },
+    { title: `Ask a teacher what extra help exists for ${row.name}`, detail: "Tutoring, a study group, or a retake only if the school offers it. Confirm before you count on it." },
+    { title: `Ask what ${row.name} unlocks next year`, detail: "Write their answer under School courses. ARAHA will not invent the next class." },
+  ]);
+}
+
+export function weakerPracticeFocus(tests = []) {
+  let math = null;
+  let reading = null;
+  for (const test of tests) {
+    const blob = `${test.name || ""} ${test.sections || ""} ${test.score || ""}`.toLowerCase();
+    if (!/sat|psat|act/.test(blob)) continue;
+    const mathMatch = blob.match(/math[^0-9]{0,12}(\d{2,3})/);
+    const readMatch = blob.match(/(reading|verbal|english|ebrw)[^0-9]{0,12}(\d{2,3})/);
+    if (mathMatch) math = Number(mathMatch[1]);
+    if (readMatch) reading = Number(readMatch[2]);
+  }
+  if (math == null || reading == null) {
+    return { focus: "", reason: "Section scores are not both entered, so ARAHA will not guess a weaker section." };
+  }
+  if (math === reading) return { focus: "", reason: "The section numbers you entered are equal." };
+  return math < reading
+    ? { focus: "Math", reason: `Math ${math} is lower than reading ${reading} in the numbers you typed.` }
+    : { focus: "Reading", reason: `Reading ${reading} is lower than math ${math} in the numbers you typed.` };
+}

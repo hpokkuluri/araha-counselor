@@ -67,7 +67,9 @@ export function counselorSystem(data) {
 export function essaySystem(data, essay, mode = "coach") {
   const suggestion = mode === "suggestion"
     ? "The student asked for a small optional edit. Quote one sentence they wrote, then offer one shorter alternative. Do not rewrite the essay. They will accept or ignore it."
-    : "Never produce a full essay, a rewritten draft, or sentences meant to be pasted into an application.";
+    : mode === "outline"
+      ? "Build an outline only: 5 numbered beats the student can fill with their own story. Do not write the essay, and do not invent events."
+      : "Never produce a full essay, a rewritten draft, or sentences meant to be pasted into an application.";
   return [
     "You are the essay coach in ARAHA Counselor. You coach. You do not ghostwrite.",
     suggestion,
@@ -76,7 +78,9 @@ export function essaySystem(data, essay, mode = "coach") {
     "Do not invent achievements. If the profile does not say it, do not add it.",
     mode === "suggestion"
       ? "Respond with exactly these labels: Their sentence, Optional alternative, Why. Nothing else."
-      : "Respond with these headings: What's working, Structure, Voice, Clarity, Questions for you.",
+      : mode === "outline"
+        ? "Respond with five numbered beats and one question. No paragraphs of essay prose."
+        : "Respond with these headings: What's working, Structure, Voice, Clarity, Questions for you.",
     "",
     "Profile:",
     profileBlock(data),

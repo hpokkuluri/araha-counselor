@@ -1,9 +1,9 @@
-import { h, field, txt, area, select } from "../dom.js";
+import { h, field, txt, area, select, toast } from "../dom.js";
 import { shell } from "../shell.js";
 import { session, update } from "../session.js";
 import { AREAS, COURSE_STATUS, LEVELS, pushActivity, uid } from "../data.js";
 import { gradeLabel, statusLabel } from "../format.js";
-import { nextYearNotes } from "../counsel.js";
+import { catchUpRoadmap, nextYearNotes, pathwayStatus } from "../counsel.js";
 
 export function mountPlan(root) {
   const view = shell(root, { title: "Four-year plan", tab: "plan" });
@@ -22,8 +22,34 @@ export function mountPlan(root) {
     );
   };
   paint();
-  view.content.append(host, offerings());
+  view.content.append(host, pathwayCard(), offerings());
   return { unmount: view.destroy };
+}
+
+function pathwayCard() {
+  const path = pathwayStatus(session.data);
+  const roadmap = catchUpRoadmap(session.data);
+  return h("section", { class: "card stack" }, [
+    h("h2", {}, "Preparation sequence"),
+    h("p", { class: "hint" }, path.note),
+    path.steps.length ? h("ul", { class: "plain" }, path.steps.map((step) => h("li", {}, `${step.status === "listed" ? "On your list" : "Ask the school"} · ${step.label}. ${step.why}`))) : null,
+    roadmap.length ? h("h3", {}, "This-year catch-up") : null,
+    ...roadmap.map((item) => h("p", {}, [h("b", {}, item.title), " ", item.detail])),
+    roadmap.length ? h("button", {
+      type: "button",
+      class: "btn primary",
+      onClick: () => {
+        update((data) => {
+          const have = new Set(data.milestones.map((item) => item.title));
+          for (const item of catchUpRoadmap(data)) {
+            if (have.has(item.title)) continue;
+            data.milestones.push({ id: uid(), title: item.title, detail: item.detail, done: false });
+          }
+        });
+        toast("Milestones saved on this device.");
+      },
+    }, "Save these milestones") : null,
+  ]);
 }
 
 function offerings() {

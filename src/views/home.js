@@ -140,9 +140,25 @@ function planCard(data) {
   ]);
 }
 
+function milestoneList() {
+  const rows = session.data.milestones || [];
+  if (!rows.length) return null;
+  return h("div", { class: "stack" }, rows.map((item, index) => h("label", { class: "checkline" }, [
+    h("input", {
+      type: "checkbox",
+      checked: item.done,
+      onChange: (event) => update((data) => { if (data.milestones[index]) data.milestones[index].done = event.target.checked; }),
+    }),
+    item.title,
+  ])));
+}
+
 function checkInCard(data) {
   if (!checkInDue(data.checkins)) {
-    return h("p", { class: "hint" }, "You checked in this week. The next prompt shows after seven days.");
+    return h("section", { class: "card stack" }, [
+      h("p", { class: "hint" }, "You checked in this week. The next prompt shows after seven days."),
+      milestoneList(),
+    ]);
   }
   const note = txt({ placeholder: "How are classes going, in your words?" });
   const form = h("form", { class: "card stack", "data-testid": "check-in" }, [
@@ -150,6 +166,7 @@ function checkInCard(data) {
     h("p", { class: "hint" }, "Optional. It connects your studies to the goals already on your profile. It does not email anyone."),
     field("Note", note),
     h("button", { class: "btn primary", type: "submit" }, "Save check-in"),
+    milestoneList(),
   ]);
   form.addEventListener("submit", (event) => {
     event.preventDefault();

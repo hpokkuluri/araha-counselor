@@ -5,7 +5,7 @@ let refreshing = false;
 const listeners = new Set();
 
 export function versionLine() {
-  const version = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "1.0.0";
+  const version = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "2.0.0";
   const built = typeof __BUILD_TIME__ === "string" ? __BUILD_TIME__ : "";
   if (!built) return `Version ${version}`;
   const when = new Date(built).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -64,6 +64,7 @@ export function applyUpdate() {
       window.location.reload();
     });
   }
+  // Reloads the app shell only. IndexedDB profiles and WebLLM weight caches are separate and are not deleted here.
   waiting.postMessage({ type: "SKIP_WAITING" });
 }
 

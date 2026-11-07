@@ -127,7 +127,7 @@ export async function buildPdf(data) {
     font("Manrope", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...MUTED);
-    doc.text("ARAHA Counselor  ·  Arahasoft  ·  Generated on this device. Not uploaded.", margin, pageHeight - 26);
+    doc.text("ARAHA Counselor 2.0  ·  Arahasoft  ·  Generated on this device. Not uploaded.", margin, pageHeight - 26);
     doc.text(String(page), pageWidth - margin, pageHeight - 26, { align: "right" });
   };
 

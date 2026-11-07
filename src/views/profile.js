@@ -3,6 +3,7 @@ import { shell } from "../shell.js";
 import { session, update } from "../session.js";
 import { GOAL_CHOICES, GPA_SCALES, GPA_WEIGHT, LEVELS, uid } from "../data.js";
 import { COURSE_SUGGESTIONS, LIST_NOTE, TEST_SUGGESTIONS } from "../lists.js";
+import { SCHOOL_FILE, findSchools, loadReference } from "../reference.js";
 
 export function mountProfile(root) {
   const view = shell(root, { title: "Profile", tab: "more", back: "/settings" });
@@ -12,7 +13,8 @@ export function mountProfile(root) {
   const grade = bind(select([["", "Select grade"], ["9", "9th"], ["10", "10th"], ["11", "11th"], ["12", "12th"]], profile.grade, { "data-testid": "profile-grade" }), profile.grade, (data, value) => { data.profile.grade = value; }, "change");
   const school = bind(txt({ placeholder: "Type your school. There is no national school list in the app.", "data-testid": "profile-school" }), profile.school, (data, value) => { data.profile.school = value; });
   const town = bind(txt({ placeholder: "Town", "data-testid": "profile-town" }), profile.town, (data, value) => { data.profile.town = value; });
-  const region = bind(txt({ placeholder: "State or region", "data-testid": "profile-region" }), profile.region, (data, value) => { data.profile.region = value; });
+  const region = bind(txt({ placeholder: "State, e.g. NJ", "data-testid": "profile-region" }), profile.region, (data, value) => { data.profile.region = value; });
+  const zip = bind(txt({ placeholder: "School ZIP", inputmode: "numeric", "data-testid": "profile-zip" }), profile.zip, (data, value) => { data.profile.zip = value; });
   const gpa = bind(txt({ placeholder: "e.g. 3.7", "data-testid": "profile-gpa" }), profile.gpa, (data, value) => { data.profile.gpa = value; });
   const gpaScale = bind(select(GPA_SCALES, profile.gpaScale), profile.gpaScale, (data, value) => { data.profile.gpaScale = value; }, "change");
   const gpaWeighted = bind(select(GPA_WEIGHT, profile.gpaWeighted), profile.gpaWeighted, (data, value) => { data.profile.gpaWeighted = value; }, "change");
@@ -39,8 +41,10 @@ export function mountProfile(root) {
     h("p", { class: "lede" }, "This is the context your counselor and essay coach use. Example hints are placeholders, not your record."),
     field("Name", name),
     h("div", { class: "grid-2" }, [field("Grade", grade), field("School", school)]),
-    h("div", { class: "grid-2" }, [field("Town", town), field("State or region", region)]),
-    h("p", { class: "hint" }, "Town and state are enough. ARAHA cannot look up schools by ZIP, and it does not store a street address."),
+    h("div", { class: "grid-2" }, [field("Town", town), field("State", region)]),
+    field("School ZIP", zip, "Optional. Used only to filter the public-school file on this device."),
+    schoolLookup(town, region, zip, school),
+    h("p", { class: "hint" }, "No street address is stored. Private schools are not in the public directory."),
     field("GPA", gpa, "Type the number your school gave you."),
     h("div", { class: "grid-2" }, [field("GPA scale", gpaScale), field("Weighted?", gpaWeighted)]),
     field("What I want to be", goal, "Undecided is a real answer. Add detail in Goals."),
@@ -84,6 +88,38 @@ function bind(node, value, write, eventName = "input") {
 function addRow(key, extra, draw) {
   update((data) => { data.profile[key].push({ id: uid(), ...extra }); });
   draw();
+}
+
+function schoolLookup(town, region, zip, school) {
+  const results = h("div", { class: "stack" });
+  const button = h("button", { type: "button", class: "btn ghost", "data-testid": "school-lookup" }, "Find public schools");
+  button.addEventListener("click", async () => {
+    results.replaceChildren(h("p", { class: "hint" }, "Loading the packaged public-school directory…"));
+    try {
+      const payload = await loadReference(SCHOOL_FILE);
+      const found = findSchools(payload, { city: town.value, state: region.value, zip: zip.value });
+      if (!found.rows.length) {
+        results.replaceChildren(h("p", {}, found.note || "No public school matched. Type the name yourself."));
+        return;
+      }
+      results.replaceChildren(
+        h("p", { class: "hint" }, `${payload.coverage} Directory date ${payload.directoryUpdated}.`),
+        ...found.rows.map((row) => h("button", {
+          type: "button",
+          class: "btn ghost",
+          onClick: () => {
+            school.value = row.name;
+            school.dispatchEvent(new Event("input", { bubbles: true }));
+            toast(`${row.name} filled in. You can edit it.`);
+          },
+        }, `${row.name} · ${row.city}, ${row.state} ${row.zip}`)),
+        found.truncated ? h("p", { class: "hint" }, "Showing the first 20 matches. Add a ZIP or state to narrow them.") : null,
+      );
+    } catch (error) {
+      results.replaceChildren(h("p", {}, error.message || "The school file did not load."));
+    }
+  });
+  return h("div", { class: "stack" }, [button, results]);
 }
 
 function datalist(id, values) {

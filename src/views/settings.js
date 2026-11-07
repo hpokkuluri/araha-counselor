@@ -67,8 +67,8 @@ export function mountSettings(root) {
     ]),
     h("section", { class: "card about stack" }, [
       brandName("md"),
-      h("p", {}, "Version 1 · Arahasoft LLC"),
-      h("p", { class: "hint" }, "Free to use. No account with Arahasoft is required. A sign-in or license check can be added later without moving these tools off your device. Chats are not uploaded."),
+      h("p", {}, "ARAHA Counselor 2.0 · Arahasoft LLC"),
+      h("p", { class: "hint" }, "Version 2 adds on-device speech, packaged College Scorecard and public-school files, preparation sequences, and model-made quizzes. Refreshing an update replaces the app shell. It does not delete your profile or the downloaded counselor model."),
       h("p", { class: "hint" }, "Install it from the browser menu (Add to Home Screen or Install app). It then opens like an app, with your data still on this device."),
     ]),
   );

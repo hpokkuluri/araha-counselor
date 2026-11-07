@@ -23,3 +23,30 @@ export function readinessItems(data) {
     label: `${done} of ${items.length} tasks filled in. This is not an admission chance.`,
   };
 }
+
+export function applicationSections(data) {
+  const ready = readinessItems(data);
+  const profile = data?.profile || {};
+  const evidence = [];
+  if (profile.name?.trim()) evidence.push(`Name: ${profile.name.trim()}`);
+  if (profile.school?.trim()) evidence.push(`School: ${profile.school.trim()}`);
+  if (profile.gpa?.trim()) evidence.push(`GPA entered: ${profile.gpa.trim()}${profile.gpaScale ? ` (${profile.gpaScale} scale)` : ""}`);
+  const classes = (profile.classes || []).filter((row) => row.name?.trim());
+  if (classes.length) {
+    evidence.push(`Classes: ${classes.map((row) => row.grade?.trim() ? `${row.name} ${row.grade}` : row.name).join(", ")}`);
+  }
+  const gaps = ready.items.filter((item) => !item.done).map((item) => item.label);
+  const actions = [];
+  for (const essay of data?.essays || []) {
+    const state = essay.draft?.trim() ? "draft saved" : essay.outline?.trim() ? "outline only" : essay.brainstorm?.trim() ? "brainstorm only" : "not started";
+    actions.push(`${essay.title || "Untitled essay"}: ${state}${essay.collegeName ? ` for ${essay.collegeName}` : ""}${essay.essayDeadline ? `, date entered ${essay.essayDeadline}` : ", no date entered"}`);
+  }
+  if (!data?.essays?.length) actions.push("Add an essay when you have a prompt. The coach will not write it for you.");
+  for (const rec of data?.recommendations || []) {
+    actions.push(`${rec.name || "Recommendation"}: ${rec.status || "considering"}`);
+  }
+  for (const item of data?.milestones || []) {
+    if (!item.done && item.title) actions.push(`Milestone still open: ${item.title}`);
+  }
+  return { evidence, gaps, actions, readiness: ready };
+}
