@@ -18,6 +18,7 @@ export async function mountAuth(root, { next = "/home" } = {}) {
       autocomplete: "email",
       placeholder: "you@email.com",
       "data-testid": "auth-user",
+      "data-nocapture": "1",
       required: true,
     });
     const pass = txt({
@@ -25,6 +26,7 @@ export async function mountAuth(root, { next = "/home" } = {}) {
       autocomplete: mode === "up" ? "new-password" : "current-password",
       placeholder: "At least 8 characters",
       "data-testid": "auth-pass",
+      "data-nocapture": "1",
       required: true,
     });
     const confirm = txt({
@@ -32,6 +34,7 @@ export async function mountAuth(root, { next = "/home" } = {}) {
       autocomplete: "new-password",
       placeholder: "Repeat the password",
       "data-testid": "auth-confirm",
+      "data-nocapture": "1",
     });
     const error = h("p", { class: "form-error", hidden: true });
     const form = h("form", { class: "card auth-card", "data-testid": mode === "up" ? "signup-form" : "login-form" }, [
@@ -93,8 +96,8 @@ export async function mountAuth(root, { next = "/home" } = {}) {
 
   const restoreCard = () => {
     const file = h("input", { type: "file", accept: "application/json,.json", "data-testid": "restore-file" });
-    const name = txt({ placeholder: "Profile name", "data-testid": "restore-name" });
-    const pass = txt({ type: "password", placeholder: "New password for this device", "data-testid": "restore-pass" });
+    const name = txt({ placeholder: "Profile name", "data-testid": "restore-name", "data-nocapture": "1" });
+    const pass = txt({ type: "password", placeholder: "New password for this device", "data-testid": "restore-pass", "data-nocapture": "1" });
     const box = h("div", { hidden: true });
     let backup = null;
     file.addEventListener("change", async () => {

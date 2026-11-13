@@ -43,9 +43,10 @@ export function field(label, control, hint) {
     control,
     hint ? h("small", { class: "hint" }, hint) : null,
   ]);
-  const type = control?.type || "";
+  const type = control?.getAttribute?.("type") || control?.type || "";
+  const authField = type === "password" || control?.getAttribute?.("data-nocapture") != null;
   const textLike = control?.tagName === "TEXTAREA" || (control?.tagName === "INPUT" && (type === "text" || type === "email" || type === "search" || type === ""));
-  if (textLike && type !== "password") {
+  if (textLike && !authField) {
     import("./capture.js").then(({ captureControls }) => wrap.append(captureControls(control))).catch(() => {});
   }
   return wrap;
