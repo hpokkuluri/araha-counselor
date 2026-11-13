@@ -25,8 +25,8 @@ export function mountParent(root) {
 }
 
 function setPin(paint) {
-  const pin = txt({ inputmode: "numeric", maxlength: "6", placeholder: "4 to 6 digits", "data-testid": "pin-new", autocomplete: "new-password" });
-  const again = txt({ inputmode: "numeric", maxlength: "6", placeholder: "Repeat the PIN", "data-testid": "pin-again", autocomplete: "new-password" });
+  const pin = txt({ inputmode: "numeric", maxlength: "6", placeholder: "4 to 6 digits", "data-testid": "pin-new", autocomplete: "new-password", "data-nocapture": "1" });
+  const again = txt({ inputmode: "numeric", maxlength: "6", placeholder: "Repeat the PIN", "data-testid": "pin-again", autocomplete: "new-password", "data-nocapture": "1" });
   const form = h("form", { class: "card stack" }, [
     h("h2", {}, "Set parent PIN"),
     h("p", { class: "hint" }, "First time on this phone: choose a PIN here. It only opens the parent summary on the student's device. It is not a parent login, it does not cover another child, and it does not follow you to a different phone."),
@@ -52,7 +52,7 @@ function setPin(paint) {
 }
 
 function enterPin(paint) {
-  const pin = txt({ inputmode: "numeric", maxlength: "6", placeholder: "Parent PIN", "data-testid": "pin-entry", autocomplete: "off" });
+  const pin = txt({ inputmode: "numeric", maxlength: "6", placeholder: "Parent PIN", "data-testid": "pin-entry", autocomplete: "off", "data-nocapture": "1" });
   const form = h("form", { class: "card stack" }, [
     h("h2", {}, "Parent PIN"),
     h("p", { class: "hint" }, "This summary is on the student's phone. The PIN keeps it from opening by accident."),
