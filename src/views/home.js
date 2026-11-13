@@ -1,10 +1,11 @@
 import { h } from "../dom.js";
 import { shell } from "../shell.js";
 import { navigate } from "../nav.js";
-import { session } from "../session.js";
+import { session, usesCloud } from "../session.js";
 import { allUpcoming, dueLabel, gradeLabel, profileGaps } from "../format.js";
 import { icon } from "../icons.js";
 import { field, txt, toast } from "../dom.js";
+import { geminiText } from "../cloud.js";
 import { update } from "../session.js";
 import { GOAL_CHOICES, uid } from "../data.js";
 import { checkInDue, gradeChecklist, gradeNotes, intakeReady, nextYearNotes } from "../counsel.js";
@@ -119,6 +120,28 @@ function intakeCard() {
   return form;
 }
 
+async function saveRoadmap() {
+  if (!usesCloud()) {
+    toast("Sign in with email so Gemini can write the summary.");
+    return;
+  }
+  toast("Writing your summary…");
+  try {
+    const text = await geminiText({
+      system: "Write a calm counselor summary and a four-year roadmap from the profile. Use headings Summary and Roadmap. Never shame. If a course is not on the school list the student typed, tell them to ask the school.",
+      messages: [{ role: "user", content: "Use my profile." }],
+      data: session.data,
+    });
+    update((data) => {
+      data.profile.counselorSummary = text;
+      data.roadmap = text;
+    });
+    toast("Summary saved on your account.");
+  } catch (error) {
+    toast(error.message || "Gemini didn't answer.");
+  }
+}
+
 function checklistCard(grade) {
   return h("section", { class: "card stack" }, [
     h("h2", {}, grade ? `A ${gradeLabel(grade)} starting list` : "A starting list"),
@@ -135,6 +158,7 @@ function planCard(data) {
     ...notes.items.map((item) => h("p", {}, [h("b", {}, item.title), " ", item.detail])),
     h("h3", {}, "Grades you typed"),
     ...grades.notes.map((line) => h("p", { class: "hint" }, line)),
+    h("button", { type: "button", class: "btn gold", onClick: saveRoadmap }, "Save a counselor summary and roadmap"),
     h("button", { type: "button", class: "btn ghost", onClick: () => navigate("/plan") }, "Open the four-year plan"),
     h("button", { type: "button", class: "btn ghost", onClick: () => navigate("/application") }, "My application preview"),
   ]);
@@ -161,9 +185,15 @@ function checkInCard(data) {
     ]);
   }
   const note = txt({ placeholder: "How are classes going, in your words?" });
+  const p1 = txt({ placeholder: "One thing to finish" });
+  const p2 = txt({ placeholder: "One class to review" });
+  const p3 = txt({ placeholder: "One person to ask" });
   const form = h("form", { class: "card stack", "data-testid": "check-in" }, [
     h("h2", {}, "This week's check-in"),
-    h("p", { class: "hint" }, "Optional. It connects your studies to the goals already on your profile. It does not email anyone."),
+    h("p", { class: "hint" }, "Three priorities, saved on your account. This does not email anyone by itself."),
+    field("Priority 1", p1),
+    field("Priority 2", p2),
+    field("Priority 3", p3),
     field("Note", note),
     h("button", { class: "btn primary", type: "submit" }, "Save check-in"),
     milestoneList(),
@@ -171,7 +201,8 @@ function checkInCard(data) {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     update((row) => {
-      row.checkins.unshift({ id: uid(), at: new Date().toISOString(), note: note.value.trim() });
+      const priorities = [p1.value, p2.value, p3.value].map((item) => item.trim()).filter(Boolean);
+      row.checkins.unshift({ id: uid(), at: new Date().toISOString(), note: [`Priorities: ${priorities.join(" · ") || "none"}`, note.value.trim()].filter(Boolean).join("\n") });
     });
     toast("Check-in saved on this device.");
     navigate("/home");

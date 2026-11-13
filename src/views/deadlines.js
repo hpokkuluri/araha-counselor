@@ -12,6 +12,14 @@ export function mountDeadlines(root) {
   view.content.append(
     h("p", { class: "lede" }, "Add dates you have verified. A template is only a reminder to go look up the real date."),
     h("p", { class: "hint" }, "ARAHA does not keep a live calendar and will not invent a deadline."),
+    h("section", { class: "card stack" }, [
+      h("h2", {}, "Aid steps"),
+      h("p", {}, "FAFSA is the federal student-aid form. CSS Profile is an extra form some colleges require. State grants are separate."),
+      h("p", { class: "hint" }, "Open dates change every year. Confirm this year's date before you rely on it."),
+      h("a", { href: "https://studentaid.gov", target: "_blank", rel: "noreferrer" }, "studentaid.gov"),
+      " ",
+      h("a", { href: "https://cssprofile.collegeboard.org/", target: "_blank", rel: "noreferrer" }, "CSS Profile"),
+    ]),
   );
   const list = mountCollection(view.content, {
     empty: "No deadlines yet.",

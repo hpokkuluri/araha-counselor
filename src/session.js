@@ -21,7 +21,11 @@ let writing = false;
 let dirty = false;
 
 export function signedIn() {
-  return Boolean(session.key && session.data && session.id);
+  return Boolean(session.data && session.id && (session.cloud || session.key));
+}
+
+export function usesCloud() {
+  return Boolean(session.cloud) && session.data?.settings?.preferLocal !== true;
 }
 
 export function normName(username) {
@@ -59,6 +63,24 @@ async function enter(record, key, data, raw, { log = true } = {}) {
 }
 
 export async function restoreSession() {
+  try {
+    const { waitForUser, loadCloudData } = await import("./cloud.js");
+    const user = await waitForUser();
+    if (user) {
+      const cloud = await loadCloudData(user.uid);
+      session.id = user.uid;
+      session.username = user.email || "";
+      session.cloud = true;
+      session.key = { cloud: true };
+      session.data = cloud.data;
+      session.approvedParents = cloud.approvedParents;
+      session.linkedKids = cloud.linkedKids;
+      session.parentUntil = 0;
+      session.pinFails = 0;
+      session.pinWait = 0;
+      return true;
+    }
+  } catch { /* stay with the on-device session if the network is down and Firebase has no cached user */ }
   let saved = null;
   try { saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch { return false; }
   if (!saved?.id || !saved?.key) return false;
@@ -90,6 +112,9 @@ function clearSession() {
   session.parentUntil = 0;
   session.pinFails = 0;
   session.pinWait = 0;
+  session.cloud = false;
+  session.approvedParents = [];
+  session.linkedKids = [];
   dirty = false;
 }
 
@@ -114,6 +139,17 @@ export async function signUp(username, password) {
   };
   await db.put(record);
   await enter(record, key, data, raw);
+}
+
+export async function importDeviceIntoCloud(username, password) {
+  if (!session.cloud) throw new Error("Sign in with email first.");
+  const record = await db.getByName(normName(username));
+  if (!record) throw new Error("No profile on this device uses that name.");
+  const iterations = Number(record.kdf?.iterations) || ITERATIONS;
+  const { key, verifier } = await deriveSecrets(password, b64ToBytes(record.kdf.salt), iterations);
+  if (!timingEqual(verifier, b64ToBytes(record.kdf.verifier))) throw new Error("That password doesn't match the on-device profile.");
+  const data = normalizeData(await decryptJSON(key, record.cipher));
+  await replaceData(data);
 }
 
 export async function signIn(username, password) {
@@ -161,13 +197,52 @@ export async function createFromBackup(username, password, data) {
 
 export async function signOut() {
   await flush();
+  if (session.cloud) {
+    try {
+      const { signOutCloud } = await import("./cloud.js");
+      await signOutCloud();
+    } catch { /* local session still clears */ }
+  }
   clearSession();
+}
+
+export async function signUpEmail(email, password) {
+  const { signUpEmail: create } = await import("./cloud.js");
+  const user = await create(email, password);
+  await enterCloud(user, emptyData());
+}
+
+export async function signInEmail(email, password) {
+  const { signInEmail: enter, loadCloudData } = await import("./cloud.js");
+  const user = await enter(email, password);
+  const cloud = await loadCloudData(user.uid);
+  await enterCloud(user, cloud.data, cloud);
+}
+
+async function enterCloud(user, data, extra = {}) {
+  session.id = user.uid;
+  session.username = user.email || "";
+  session.cloud = true;
+  session.key = { cloud: true };
+  session.data = normalizeData(data);
+  session.approvedParents = extra.approvedParents || [];
+  session.linkedKids = extra.linkedKids || [];
+  session.parentUntil = 0;
+  dirty = true;
+  await flush();
 }
 
 export async function deleteCurrent() {
   const id = session.id;
+  const cloud = session.cloud;
+  if (cloud) {
+    try {
+      const { signOutCloud } = await import("./cloud.js");
+      await signOutCloud();
+    } catch { /* still leave the screen */ }
+  }
   clearSession();
-  if (id) await db.remove(id);
+  if (id && !cloud) await db.remove(id);
 }
 
 export function update(mutator) {
@@ -196,7 +271,18 @@ function queue() {
 }
 
 export async function flush() {
-  if (!dirty || !session.key || !session.id || !session.data) return;
+  if (!dirty || !session.id || !session.data) return;
+  if (session.cloud) {
+    dirty = false;
+    const { saveCloudData } = await import("./cloud.js");
+    await saveCloudData(session.id, session.data, {
+      approvedParents: session.approvedParents || [],
+      linkedKids: session.linkedKids || [],
+      email: session.username || "",
+    });
+    return;
+  }
+  if (!session.key) return;
   dirty = false;
   const id = session.id;
   const snapshot = structuredClone(session.data);

@@ -1,12 +1,14 @@
 import { h, field, txt, area, select, toast } from "../dom.js";
 import { shell } from "../shell.js";
 import { navigate } from "../nav.js";
-import { session, update } from "../session.js";
+import { session, update, usesCloud } from "../session.js";
 import { ESSAY_KINDS, pushActivity, uid } from "../data.js";
 import { statusLabel } from "../format.js";
 import { essayStatus } from "../summary.js";
 import { essaySystem } from "../prompts.js";
+import { INTERESTS, SAMPLES, TOPICS } from "../samples.js";
 import { captureControls } from "../capture.js";
+import { geminiText } from "../cloud.js";
 import { renderRich } from "../rich.js";
 import { complete, currentModelId, fitModelChoice, loadModel, modelCached } from "../ai.js";
 
@@ -15,7 +17,7 @@ export function mountEssayList(root) {
   const title = txt({ placeholder: "e.g. a story about building something", "data-testid": "essay-title" });
   const kind = select(ESSAY_KINDS, "college");
   const form = h("form", { class: "card editor" }, [
-    h("p", { class: "hint" }, "The coach helps you brainstorm, outline, and revise. It will not write the essay for you."),
+    h("p", { class: "hint" }, "Or start with a title. The interest path above can draft from your answers."),
     field("Title", title),
     field("Kind", kind),
     h("button", { class: "btn primary", type: "submit" }, "Start an essay"),
@@ -39,8 +41,101 @@ export function mountEssayList(root) {
       ])
     )))
     : h("div", { class: "empty" }, "No essays yet. Start with a title when you have a prompt.");
-  view.content.append(form, list);
+  view.content.append(interestStart(), form, list);
   return { unmount: view.destroy };
+}
+
+function interestStart() {
+  const interest = h("select", { class: "txt", "data-testid": "essay-interest" }, INTERESTS.map((id) => h("option", { value: id }, id)));
+  interest.value = INTERESTS.includes(session.data.profile.goalChoice) ? session.data.profile.goalChoice : "undecided";
+  const custom = txt({ placeholder: "Or write your own topic" });
+  const topics = h("div", { class: "stack" });
+  const sample = h("details", {}, [
+    h("summary", {}, "Sample essay — a guide, not yours"),
+    h("p", { class: "hint" }, SAMPLES[interest.value] || SAMPLES.undecided),
+  ]);
+  const draw = () => {
+    sample.replaceChildren(
+      h("summary", {}, "Sample essay — a guide, not yours"),
+      h("p", { class: "hint" }, SAMPLES[interest.value] || SAMPLES.undecided),
+    );
+    topics.replaceChildren(...(TOPICS[interest.value] || TOPICS.undecided).map((topic) => h("button", {
+      type: "button",
+      class: "btn ghost",
+      onClick: () => begin(interest.value, topic),
+    }, topic)));
+  };
+  interest.addEventListener("change", draw);
+  draw();
+  return h("section", { class: "card stack" }, [
+    h("h2", {}, "Start from an interest"),
+    field("Interest", interest, "Prefilled from your profile. Change it anytime."),
+    topics,
+    field("Your topic", custom),
+    h("button", { type: "button", class: "btn primary", onClick: () => { if (custom.value.trim()) begin(interest.value, custom.value.trim()); } }, "Use my topic"),
+    sample,
+  ]);
+}
+
+function begin(interest, topic) {
+  const id = uid();
+  update((data) => {
+    data.essays.unshift({
+      id, title: topic, kind: "college", interest, topic, prompt: topic, brainstorm: "", outline: "", draft: "", feedback: "", suggestion: "", collegeName: "", essayDeadline: "", versions: [], answers: [], updatedAt: new Date().toISOString(),
+    });
+    pushActivity(data, "essay", "Started from an interest");
+  });
+  navigate(`/essay/${id}`);
+}
+
+function guided(essay, id, brainstorm, outline, draft) {
+  const prompts = [
+    "What happened, in one scene?",
+    "What did you do?",
+    "What was the turning point?",
+    "What did you learn?",
+    "Why does this matter for this interest?",
+  ];
+  const boxes = prompts.map((prompt, index) => area({ rows: 3, placeholder: prompt, value: essay.answers?.[index] || "" }));
+  const saveAnswers = () => update((data) => {
+    const item = data.essays.find((row) => row.id === id);
+    if (item) item.answers = boxes.map((box) => box.value);
+  });
+  boxes.forEach((box) => box.addEventListener("input", saveAnswers));
+  const build = h("button", { type: "button", class: "btn gold" }, "Build outline and starter paragraphs");
+  build.addEventListener("click", async () => {
+    if (!usesCloud()) {
+      toast("Sign in with email so Gemini can draft from your answers.");
+      return;
+    }
+    build.disabled = true;
+    try {
+      const answers = boxes.map((box, index) => `${prompts[index]} ${box.value}`).join("\n");
+      const text = await geminiText({
+        system: "Using only the student's answers, write an outline labeled Hook, Story, Turning point, Reflection, Why this field. Then write a starter paragraph for each label, based on their words, for them to edit. Do not claim the sample essay is theirs.",
+        messages: [{ role: "user", content: `Interest: ${essay.interest || ""}. Topic: ${essay.topic || essay.title}.\n${answers}` }],
+        data: session.data,
+      });
+      update((data) => {
+        const item = data.essays.find((row) => row.id === id);
+        if (!item) return;
+        item.outline = text;
+        item.brainstorm = answers;
+      });
+      outline.value = text;
+      brainstorm.value = answers;
+      toast("Outline saved. Edit it in your own words.");
+    } catch (error) {
+      toast(error.message || "Gemini didn't answer.");
+    } finally {
+      build.disabled = false;
+    }
+  });
+  return h("section", { class: "card stack" }, [
+    h("h2", {}, "Guided draft"),
+    ...boxes.map((box, index) => field(prompts[index], box)),
+    build,
+  ]);
 }
 
 export function mountEssay(root, id) {
@@ -187,7 +282,8 @@ export function mountEssay(root, id) {
   coach.addEventListener("click", () => runCoach(id, coach, showFeedback));
 
   view.content.append(
-    h("p", { class: "lede" }, "ARAHA coaches structure, voice, and clarity. It will not ghostwrite."),
+    h("p", { class: "lede" }, "Answer a few questions, then ARAHA drafts an outline and starter paragraphs from your answers for you to edit."),
+    guided(essay, id, brainstorm, outline, draft),
     field("Title", title),
     field("Kind", kind),
     field("Prompt", prompt),

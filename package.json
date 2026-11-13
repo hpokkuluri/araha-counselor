@@ -1,6 +1,6 @@
 {
   "name": "araha-counselor",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "description": "ARAHA Counselor by Arahasoft — a private, offline-first student counselor.",
@@ -17,6 +17,7 @@
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
     "@mlc-ai/web-llm": "^0.2.87",
+    "firebase": "^11.10.0",
     "jspdf": "^2.5.2",
     "katex": "^0.16.22",
     "tesseract.js": "^5.1.1"

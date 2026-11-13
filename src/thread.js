@@ -2,7 +2,7 @@ import { h, toast } from "./dom.js";
 import { icon } from "./icons.js";
 import { renderRich } from "./rich.js";
 import { uid, pushActivity } from "./data.js";
-import { session, update } from "./session.js";
+import { session, update, usesCloud } from "./session.js";
 import { navigate } from "./nav.js";
 import { complete, currentModelId, fitModelChoice, loadModel, modelCached, resetConversation, stopGeneration } from "./ai.js";
 import { captureControls } from "./capture.js";
@@ -56,11 +56,12 @@ export function mountThread(parent, spec) {
     send.disabled = true;
     const mine = ++generation;
     const modelId = fitModelChoice(session.data.settings);
-    const ready = currentModelId() === modelId;
-    const pending = h("div", { class: "msg ai" }, ready ? "Thinking…" : "Getting the on-device model ready…");
+    const cloud = usesCloud();
+    const ready = cloud || currentModelId() === modelId;
+    const pending = h("div", { class: "msg ai" }, cloud ? "Thinking…" : ready ? "Thinking…" : "Getting the on-device model ready…");
     log.append(pending);
     try {
-      if (!ready) {
+      if (!cloud && !ready) {
         const cached = await modelCached(modelId);
         pending.textContent = cached ? "Opening the saved model…" : "Downloading the model…";
         if (!cached) {
@@ -97,7 +98,7 @@ export function mountThread(parent, spec) {
     } catch (error) {
       if (mine !== generation) return;
       pending.className = "msg err";
-      pending.textContent = error?.message || "The on-device model stopped.";
+      pending.textContent = error?.message || "The counselor stopped. Your messages are still here.";
     } finally {
       if (!clearing) {
         running = false;

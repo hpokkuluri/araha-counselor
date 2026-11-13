@@ -333,8 +333,37 @@ export async function resetConversation() {
   try { await engine.resetChat(); } catch { /* keep the weights loaded */ }
 }
 
-export async function complete({ system, messages, onDelta, maxTokens = 700, threadKey = "" }) {
-  if (!engine) throw new Error("The on-device model isn't loaded.");
+export async function complete(opts) {
+  const { usesCloud, session } = await import("./session.js");
+  if (usesCloud()) {
+    const mine = ++generationEpoch;
+    try {
+      const { geminiText } = await import("./cloud.js");
+      return await geminiText({
+        system: opts.system,
+        messages: opts.messages,
+        data: session.data,
+        onDelta: (value) => { if (mine === generationEpoch) opts.onDelta?.(value); },
+        shouldStop: () => mine !== generationEpoch,
+      });
+    } catch (error) {
+      if (engine) return localComplete(opts);
+      throw new Error(error?.message || "Gemini didn't answer. Your chat is still here. You can turn on the on-device model in Settings and try again.");
+    }
+  }
+  if (!engine) {
+    try {
+      const { usesCloud: stillCloud } = await import("./session.js");
+      if (!stillCloud()) throw new Error("Sign in to use Gemini, or turn on the on-device model in Settings.");
+    } catch (error) {
+      if (!engine) throw error;
+    }
+  }
+  return localComplete(opts);
+}
+
+async function localComplete({ system, messages, onDelta, maxTokens = 700, threadKey = "" }) {
+  if (!engine) throw new Error("The on-device model isn't loaded. Gemini is the default once you are signed in.");
   const prior = inflight;
   const mine = ++generationEpoch;
   if (prior) {

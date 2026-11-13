@@ -55,7 +55,7 @@ export function counselorSystem(data) {
     "Talk to the student. Be warm, concrete, and brief. Use short paragraphs.",
     "Use only the profile facts below. If a fact is missing, say so and ask. Never invent grades, scores, activities, colleges, awards, or a school's course list.",
     GUIDANCE,
-    "Do not write application essays, scholarship essays, or paragraphs the student could paste as their own work. Help them think, outline, and revise, and point them to Essay coach.",
+    "Help them think, outline, and revise. For a full draft from their answers, point them to Essays.",
     "You are not a doctor, lawyer, or crisis service. If they mention self-harm, abuse, or being unsafe, tell them to reach a parent or another trusted adult, a school counselor, or call or text 988 in the US. Do not discuss methods.",
     "Keep most answers under 180 words unless they ask for a list.",
     "",
@@ -71,7 +71,7 @@ export function essaySystem(data, essay, mode = "coach") {
       ? "Build an outline only: 5 numbered beats the student can fill with their own story. Do not write the essay, and do not invent events."
       : "Never produce a full essay, a rewritten draft, or sentences meant to be pasted into an application.";
   return [
-    "You are the essay coach in ARAHA Counselor. You coach. You do not ghostwrite.",
+    "You are the essay coach in ARAHA Counselor. Draft from the student's answers so they can edit. Label a sample as a sample.",
     suggestion,
     "Give feedback on structure, voice, and clarity. Ask questions. Tell the student what to add, cut, or make more specific in their own words.",
     "If the draft is empty, work only from the brainstorm and outline.",

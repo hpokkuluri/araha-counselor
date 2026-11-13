@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.0
+
+- Email and password sign-in with Firebase Auth, Firestore sync, and Gemini (`gemini-2.5-flash`) as the default counselor. The on-device model is optional.
+- Essay interest topics, labeled sample essays, guided questions, and starter drafts from the student's answers.
+- Test prep for PSAT/NMSQT, PSAT 10, SAT, ACT, and three AP courses, generated in the published timing.
+- Parent link codes, weekly reminder workflow, and Home Screen hint on iPhone.
+- `public/CNAME` is `counselor.arahasoft.com` because that name already resolves to GitHub Pages.
+
 ## 2.0.0
 
 ARAHA Counselor 2.0 keeps every 1.0 profile. Backup format is still version 1, so an older export still imports.

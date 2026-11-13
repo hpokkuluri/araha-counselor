@@ -7,6 +7,7 @@ import { noteInterruptedLoad } from "./ai.js";
 import { toast } from "./dom.js";
 import { initUpdates, mountUpdateBanner } from "./updates.js";
 import { bindKeyboardInset } from "./layout.js";
+import { mountInstallHint } from "./install.js";
 
 const splash = document.getElementById("splash");
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -30,6 +31,7 @@ window.setTimeout(closeSplash, reduced ? 280 : 3300);
 watchSystemTheme();
 bindKeyboardInset();
 mountUpdateBanner();
+mountInstallHint();
 initUpdates();
 const interrupted = noteInterruptedLoad();
 restoreSession().finally(() => {

@@ -15,6 +15,7 @@ import { mountParent } from "./views/parent.js";
 import { mountProgress } from "./views/progress.js";
 import { mountSettings } from "./views/settings.js";
 import { mountModel } from "./views/model.js";
+import { mountTests } from "./views/tests.js";
 import { mountApplication } from "./views/application.js";
 
 let current = null;
@@ -58,6 +59,7 @@ function draw(root) {
     "/progress": "Progress",
     "/settings": "More",
     "/model": "On-device AI",
+    "/tests": "Test prep",
     "/application": "My application",
   };
   const screen = titles[route.path];
@@ -79,6 +81,7 @@ function draw(root) {
     "/progress": mountProgress,
     "/settings": mountSettings,
     "/model": mountModel,
+    "/tests": mountTests,
     "/application": mountApplication,
   };
   const mount = pages[route.path] || mountHome;

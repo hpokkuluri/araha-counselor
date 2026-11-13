@@ -1,6 +1,6 @@
 # ARAHA Counselor
 
-ARAHA Counselor 2.0 is a private, offline-first student counselor from Arahasoft. It is a static web app. It is free to run: there is no backend, no paid API, and no API key. The first profile you create lives only on that phone or computer. See `CHANGELOG.md` for what changed from 1.0.
+ARAHA Counselor 2.1 is a counselor from Arahasoft. Sign-in, profiles, and Gemini run through Firebase. The on-device model remains an optional fallback. It is a static web app. It is free to run: there is no backend, no paid API, and no API key. The first profile you create lives only on that phone or computer. See `CHANGELOG.md` for what changed from 1.0.
 
 A counselor chat and subject tutors can run an open-source model in the browser. Your questions are not uploaded. If the device cannot run the model, the rest of the app still works.
 
@@ -112,6 +112,16 @@ The choice is stored in `localStorage` under `ac-theme` (`auto`, `light`, or `da
 - `src/ai.js` — WebLLM download and chat, loaded only when needed
 - `src/pdf.js` — on-device progress report
 - `public/fonts/` — the same Manrope and Instrument Serif files used by Interview Edge
+
+## Firebase setup
+
+The web config in `src/firebase.js` is public. Do not put a service account or Resend key in the repo.
+
+1. Firebase console → Firestore → Rules, paste `firestore.rules`, and publish. Until that happens, production-mode Firestore denies client reads and writes.
+2. App Check: create a reCAPTCHA v3 site key, put it in `appCheckSiteKey` in `src/firebase.js`, and register the app in App Check. Leave the key empty to keep App Check off.
+3. Cloud Messaging: put the web VAPID key in `fcmVapidKey`. Push stays off while it is empty. Spark has no Cloud Functions, so the scheduled workflow is what can send a message.
+4. GitHub repository secrets: `RESEND_API_KEY` (from address `counselor@arahasoft.com`) and `FIREBASE_SERVICE_ACCOUNT` (JSON for a Firebase service account). `.github/workflows/reminders.yml` skips sending when either secret is missing.
+5. `counselor.arahasoft.com` already resolves to GitHub Pages, so `public/CNAME` is set. Confirm the domain in the Pages settings when this deploys. Authorized Auth domains should include `hpokkuluri.github.io` and `counselor.arahasoft.com`.
 
 ## Limits in version 1
 

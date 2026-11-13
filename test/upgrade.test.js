@@ -14,6 +14,7 @@ import { collegeSummary, findColleges, findSchools, referenceUrl } from "../src/
 import { parseCards, parseQuiz } from "../src/generated.js";
 import { pathwayStatus, weakerPracticeFocus } from "../src/counsel.js";
 import { applicationSections } from "../src/readiness.js";
+import { EXAMS, sectionTotals } from "../src/exams.js";
 import { readFileSync as readText } from "node:fs";
 
 test("profile survives a cleared counselor chat", () => {
@@ -111,7 +112,10 @@ test("packaged references and v2 helpers use real files, not guesses", () => {
   const brief = applicationSections(emptyData());
   assert.equal(brief.evidence.length, 0);
   const pkg = JSON.parse(readText(new URL("../package.json", import.meta.url), "utf8"));
-  assert.equal(pkg.version, "2.0.0");
+  assert.equal(pkg.version, "2.1.0");
+  assert.equal(sectionTotals(EXAMS.sat), 98);
+  assert.equal(EXAMS.sat.sections[0].questions + EXAMS.sat.sections[1].questions, 54);
+  assert.equal(EXAMS.act.sections[0].questions, 50);
 });
 
 test("source does not call cloud speech or a chat API", () => {

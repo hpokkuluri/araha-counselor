@@ -38,11 +38,17 @@ export function clear(el) {
 }
 
 export function field(label, control, hint) {
-  return h("label", { class: "field" }, [
+  const wrap = h("label", { class: "field" }, [
     h("span", { class: "lbl" }, label),
     control,
     hint ? h("small", { class: "hint" }, hint) : null,
   ]);
+  const type = control?.type || "";
+  const textLike = control?.tagName === "TEXTAREA" || (control?.tagName === "INPUT" && (type === "text" || type === "email" || type === "search" || type === ""));
+  if (textLike && type !== "password") {
+    import("./capture.js").then(({ captureControls }) => wrap.append(captureControls(control))).catch(() => {});
+  }
+  return wrap;
 }
 
 export function txt(props) {

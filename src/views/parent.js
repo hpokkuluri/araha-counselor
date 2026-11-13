@@ -6,13 +6,14 @@ import { gradeLabel, statusLabel } from "../format.js";
 import { COURSE_STATUS } from "../data.js";
 import { allUpcoming, dueLabel } from "../format.js";
 import { attachProgressTools } from "./progress.js";
+import { approveParent, loadStudent, parentRequests, publishLinkCode, readLinkCode, requestParentLink } from "../cloud.js";
 
 const PIN_ROUNDS = 80000;
 
 export function mountParent(root) {
   const view = shell(root, { title: "Parent view", tab: "more", back: "/settings" });
   const host = h("div", { class: "stack", "data-testid": "parent-view" });
-  view.content.append(host);
+  view.content.append(familyCard(), host);
   const paint = () => {
     host.replaceChildren();
     if (!session.data.parentPin) host.append(setPin(paint));
@@ -131,4 +132,76 @@ function dashboard(paint) {
   );
   attachProgressTools(box);
   return box;
+}
+
+function familyCard() {
+  if (!session.cloud) {
+    return h("section", { class: "card stack" }, [
+      h("h2", {}, "Parent accounts"),
+      h("p", { class: "hint" }, "Sign in with email to link a parent. A parent sees this phone's data only after the student approves. The PIN above is still only a lock on this device."),
+    ]);
+  }
+  const codeOut = h("p", { class: "hint" });
+  const incoming = h("div", { class: "stack" });
+  const parentCode = txt({ placeholder: "Student code", autocapitalize: "characters" });
+  const childView = h("div", { class: "stack" });
+  let lastStudent = "";
+  const refresh = async () => {
+    const rows = await parentRequests(session.id).catch(() => []);
+    incoming.replaceChildren(...rows.filter((row) => row.status === "pending").map((row) => h("button", {
+      type: "button",
+      class: "btn ghost",
+      onClick: async () => {
+        session.approvedParents = await approveParent(session.id, row.parentUid, session.approvedParents);
+        toast("Parent approved. They can read this account.");
+        refresh();
+      },
+    }, `Approve ${row.parentEmail || row.parentUid}`)));
+  };
+  refresh();
+  return h("section", { class: "card stack" }, [
+    h("h2", {}, "Link a parent"),
+    h("p", { class: "hint" }, "A code lets one parent account request access. You approve it here. They can link more than one student the same way."),
+    h("button", { type: "button", class: "btn gold", onClick: async () => {
+      const code = await publishLinkCode(session.id, session.data.profile.name || session.username);
+      codeOut.textContent = `Give this code to a parent: ${code}`;
+    } }, "Create a link code"),
+    codeOut,
+    h("h3", {}, "Waiting for your approval"),
+    incoming,
+    h("h3", {}, "I am the parent"),
+    field("Student code", parentCode),
+    h("button", { type: "button", class: "btn primary", onClick: async () => {
+      const found = await readLinkCode(parentCode.value);
+      if (!found?.studentUid) {
+        toast("That code was not found.");
+        return;
+      }
+      await requestParentLink(session.id, found.studentUid, session.username);
+      const kids = session.linkedKids || [];
+      kids.push({ uid: found.studentUid, name: found.name || "Student", status: "pending" });
+      session.linkedKids = kids;
+      const { saveCloudData } = await import("../cloud.js");
+      await saveCloudData(session.id, session.data, { approvedParents: session.approvedParents || [], linkedKids: kids, email: session.username });
+      lastStudent = found.studentUid;
+      toast(`Request sent to ${found.name || "the student"}. They must approve it.`);
+    } }, "Request access"),
+    h("button", { type: "button", class: "btn ghost", onClick: async () => {
+      if (!lastStudent) {
+        toast("Enter a student code first.");
+        return;
+      }
+      try {
+        const child = await loadStudent(lastStudent);
+        const profile = child.data?.profile || {};
+        childView.replaceChildren(
+          h("p", {}, `${profile.name || "Student"} · ${profile.school || "school not entered"}`),
+          h("p", { class: "hint" }, profile.counselorSummary || "No counselor summary yet."),
+        );
+      } catch {
+        toast("This student has not approved your account yet.");
+      }
+    } }, "Open linked student"),
+    childView,
+  ]);
 }

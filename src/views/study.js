@@ -10,6 +10,8 @@ import { PRACTICE_NOTE, practiceFor } from "../practice.js";
 import { parseCards, parseQuiz } from "../generated.js";
 import { weakerPracticeFocus } from "../counsel.js";
 import { complete, currentModelId, fitModelChoice, loadModel, modelCached } from "../ai.js";
+import { geminiImage } from "../cloud.js";
+import { usesCloud } from "../session.js";
 
 export function mountStudy(root) {
   const view = shell(root, { title: "Subjects", tab: "study" });
@@ -199,6 +201,7 @@ function studyTools(id, subject) {
       h("button", { type: "button", class: "btn ghost", onClick: () => makePractice(id, subject, topic, made, "cards", focus.focus) }, "Make flashcards"),
     ]),
     made,
+    photoGrade(id),
   ]);
 
   return h("div", { class: "stack" }, [
@@ -207,6 +210,33 @@ function studyTools(id, subject) {
     h("section", { class: "card stack" }, [cardForm]),
     h("section", { class: "card stack" }, [h("h2", {}, "Offline original practice"), h("p", { class: "hint" }, "These six items stay available when the model is not loaded."), quizHost]),
   ]);
+}
+
+function photoGrade(id) {
+  const file = h("input", { type: "file", accept: "image/*" });
+  const out = h("p", { class: "hint" }, "A photo of your work is sent to Gemini for grading, not kept by Arahasoft. Handwriting may be misread.");
+  file.addEventListener("change", async () => {
+    const chosen = file.files?.[0];
+    file.value = "";
+    if (!chosen) return;
+    if (!usesCloud()) {
+      out.textContent = "Sign in with email to grade a photo. The image is not stored in the app.";
+      return;
+    }
+    out.textContent = "Grading on Gemini…";
+    try {
+      const text = await geminiImage({
+        system: "Grade this student work. Give partial credit, say what is correct, and explain the miss calmly with one next step. Do not shame.",
+        prompt: `Subject: ${id}. Award points out of 10.`,
+        file: chosen,
+        data: session.data,
+      });
+      out.textContent = text;
+    } catch (error) {
+      out.textContent = error.message || "Gemini could not read the photo.";
+    }
+  });
+  return h("div", { class: "stack" }, [h("h3", {}, "Show-your-work photo"), file, out]);
 }
 
 async function makePractice(id, subject, topic, host, kind, focus) {
