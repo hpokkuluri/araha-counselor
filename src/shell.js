@@ -9,6 +9,7 @@ const TABS = [
   ["home", "/home", "Home", "home"],
   ["plan", "/plan", "Plan", "plan"],
   ["essays", "/essays", "Essays", "essay"],
+  ["tests", "/tests", "Tests", "check"],
   ["study", "/study", "Study", "book"],
   ["more", "/settings", "More", "more"],
 ];

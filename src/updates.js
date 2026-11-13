@@ -5,7 +5,7 @@ let refreshing = false;
 const listeners = new Set();
 
 export function versionLine() {
-  const version = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "2.0.0";
+  const version = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "2.1.0";
   const built = typeof __BUILD_TIME__ === "string" ? __BUILD_TIME__ : "";
   if (!built) return `Version ${version}`;
   const when = new Date(built).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });

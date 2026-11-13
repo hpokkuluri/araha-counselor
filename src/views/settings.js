@@ -7,6 +7,7 @@ import { applyTheme, choiceLabel, getChoice } from "../theme.js";
 import { brandName } from "../brand.js";
 import { checkForUpdates, versionLine } from "../updates.js";
 import { fitModelChoice, forgetModel, offeredModels } from "../ai.js";
+import { importDeviceIntoCloud, listAccounts } from "../session.js";
 
 export function mountSettings(root) {
   const view = shell(root, { title: "More", tab: "more" });
@@ -36,6 +37,7 @@ export function mountSettings(root) {
       h("h2", {}, "Backup"),
       h("p", { class: "hint" }, "The file is readable JSON. It is how your data moves to a new phone or a future address. Keep it private. The copy inside the app stays encrypted."),
       h("button", { type: "button", class: "btn primary", "data-testid": "export-json", onClick: exportNow }, "Export backup"),
+      h("button", { type: "button", class: "btn ghost", onClick: importDevice }, "Import this device's old profile into the cloud"),
       h("label", { class: "btn ghost" }, [
         "Import backup",
         h("input", { type: "file", accept: "application/json,.json", hidden: true, "data-testid": "import-json", onChange: importNow }),
@@ -67,7 +69,7 @@ export function mountSettings(root) {
     ]),
     h("section", { class: "card about stack" }, [
       brandName("md"),
-      h("p", {}, "ARAHA Counselor 2.0 · Arahasoft LLC"),
+      h("p", {}, "ARAHA Counselor 2.1 · Arahasoft LLC"),
       h("p", { class: "hint" }, "Version 2 adds on-device speech, packaged College Scorecard and public-school files, preparation sequences, and model-made quizzes. Refreshing an update replaces the app shell. It does not delete your profile or the downloaded counselor model."),
       h("p", { class: "hint" }, "Install it from the browser menu (Add to Home Screen or Install app). It then opens like an app, with your data still on this device."),
     ]),
@@ -97,7 +99,16 @@ function modelSetting() {
   picker.value = models.some((model) => model.id === current) ? current : (models[0]?.id || "");
   return h("section", { class: "card stack" }, [
     h("h2", {}, "Model"),
-    h("p", { class: "hint" }, "Phones use the smaller model. Changing it deletes the previous download so it doesn't fill this device."),
+    h("p", { class: "hint" }, "Gemini is the default. The on-device model is only used when you turn it on, or if Gemini fails and a model is already loaded."),
+    h("label", { class: "checkline" }, [
+      h("input", {
+        type: "checkbox",
+        checked: session.data.settings.preferLocal === true,
+        "data-testid": "prefer-local",
+        onChange: (event) => update((data) => { data.settings.preferLocal = event.target.checked; }),
+      }),
+      "Prefer the on-device model",
+    ]),
     picker,
   ]);
 }
@@ -129,6 +140,28 @@ function exportNow() {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   downloadBlob(blob, `araha-counselor-${session.username || "backup"}.json`);
   toast("Backup downloaded. Store that file somewhere private.");
+}
+
+async function importDevice() {
+  if (!session.cloud) {
+    toast("Sign in with email first. Then this copies a profile that already lives on the phone.");
+    return;
+  }
+  const accounts = await listAccounts().catch(() => []);
+  if (!accounts.length) {
+    toast("No on-device profile was found to import.");
+    return;
+  }
+  const name = window.prompt("Profile name on this device", accounts[0].username);
+  if (!name) return;
+  const password = window.prompt("Password that unlocks that on-device profile");
+  if (!password) return;
+  try {
+    await importDeviceIntoCloud(name, password);
+    toast("Imported into your cloud account.");
+  } catch (error) {
+    toast(error.message || "Couldn't import that profile.");
+  }
 }
 
 async function importNow(event) {

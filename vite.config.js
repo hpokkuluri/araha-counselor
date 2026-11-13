@@ -10,7 +10,7 @@ const builtAt = new Date().toISOString();
 export default defineConfig({
   base,
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || "2.0.0"),
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || "2.1.0"),
     __BUILD_TIME__: JSON.stringify(builtAt),
   },
   plugins: [

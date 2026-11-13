@@ -1,5 +1,6 @@
 import { h, field, txt, toast } from "../dom.js";
-import { createFromBackup, listAccounts, normName, signIn, signUp } from "../session.js";
+import { createFromBackup, normName, signInEmail, signUpEmail } from "../session.js";
+import { resetPassword } from "../cloud.js";
 import { parseBackup } from "../data.js";
 import { navigate } from "../nav.js";
 import { themeButton } from "../theme.js";
@@ -7,15 +8,15 @@ import { icon } from "../icons.js";
 import { brandName, companyRow } from "../brand.js";
 
 export async function mountAuth(root, { next = "/home" } = {}) {
-  const accounts = await listAccounts().catch(() => []);
-  let mode = accounts.length ? "in" : "up";
+  let mode = "in";
   const page = h("div", { class: "auth" });
   root.append(page);
 
   const paint = () => {
     const user = txt({
-      autocomplete: "username",
-      placeholder: "e.g. alex",
+      type: "email",
+      autocomplete: "email",
+      placeholder: "you@email.com",
       "data-testid": "auth-user",
       required: true,
     });
@@ -37,9 +38,10 @@ export async function mountAuth(root, { next = "/home" } = {}) {
       h("div", { class: "seg", role: "tablist" }, [
         h("button", { type: "button", class: mode === "in" ? "on" : "", onClick: () => { mode = "in"; paint(); } }, "Sign in"),
         h("button", { type: "button", class: mode === "up" ? "on" : "", onClick: () => { mode = "up"; paint(); } }, "Create account"),
+        h("button", { type: "button", class: mode === "reset" ? "on" : "", onClick: () => { mode = "reset"; paint(); } }, "Reset"),
       ]),
-      field("Profile name", user, "Only on this device. It is not sent anywhere."),
-      field("Password", pass, mode === "up" ? "Locks your data on this device. It cannot be recovered if you forget it." : "The password unlocks the copy stored on this device."),
+      field("Email", user, "This signs you in on the web. Your profile syncs between phone and computer."),
+      mode === "reset" ? null : field("Password", pass, mode === "up" ? "At least 8 characters. You can reset it by email." : "The password for this email."),
       mode === "up" ? field("Confirm password", confirm) : null,
       error,
       h("button", { class: "btn gold wide", type: "submit", "data-testid": "auth-submit" }, [
@@ -53,11 +55,19 @@ export async function mountAuth(root, { next = "/home" } = {}) {
       const button = form.querySelector("button[type=submit]");
       button.disabled = true;
       try {
+        if (mode === "reset") {
+          await resetPassword(user.value);
+          toast("If that email has an account, a reset link is on its way.");
+          mode = "in";
+          paint();
+          return;
+        }
         if (mode === "up") {
           if (pass.value !== confirm.value) throw new Error("Those passwords don't match.");
-          await signUp(user.value, pass.value);
+          if (pass.value.length < 8) throw new Error("Use at least 8 characters.");
+          await signUpEmail(user.value, pass.value);
         } else {
-          await signIn(user.value, pass.value);
+          await signInEmail(user.value, pass.value);
         }
         navigate(next);
       } catch (err) {
@@ -67,28 +77,15 @@ export async function mountAuth(root, { next = "/home" } = {}) {
       }
     });
 
-    const accountList = accounts.length ? h("div", { class: "stack" }, [
-      h("h2", { class: "sec-h" }, "On this device"),
-      ...accounts.map((account) => h("button", {
-        type: "button",
-        class: "card account-btn",
-        onClick: () => { user.value = account.username; pass.focus(); },
-      }, [
-        h("b", {}, account.username),
-        h("small", {}, "Tap, then enter the password"),
-      ])),
-    ]) : null;
-
     page.replaceChildren(
       h("div", { class: "auth-tools" }, themeButton()),
       h("section", { class: "auth-hero" }, [
         companyRow(),
         brandName("lg"),
-        h("p", { class: "tag" }, "A private counselor for high school. Your profile, plans, and chats stay on this device."),
+        h("p", { class: "tag" }, "A counselor for any high school student. Sign in with email so your profile follows you. Chats go to Gemini in Google Cloud, not to a public page."),
       ]),
       h("div", { class: "auth-body" }, [
         form,
-        accountList,
         restoreCard(),
       ]),
     );
@@ -131,7 +128,7 @@ export async function mountAuth(root, { next = "/home" } = {}) {
     box.append(form);
     return h("section", { class: "card" }, [
       h("h2", {}, "Restore a backup"),
-      h("p", { class: "hint" }, "Choose a JSON backup from another phone. You'll set a new password for this device."),
+      h("p", { class: "hint" }, "A JSON backup still restores a local copy. After you sign in with email, import that device profile from More so it moves into your cloud account."),
       file,
       box,
     ]);
