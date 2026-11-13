@@ -10,11 +10,26 @@ export async function watchAuth(onUser) {
   return onAuthStateChanged(auth, onUser);
 }
 
-export function waitForUser() {
-  return new Promise(async (resolve) => {
-    const stop = await watchAuth((user) => {
-      stop();
+export function waitForUser(timeoutMs = 8000) {
+  return new Promise((resolve) => {
+    let stop = null;
+    let done = false;
+    const finish = (user) => {
+      if (done) return;
+      done = true;
       resolve(user || null);
+      if (stop) stop();
+    };
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    watchAuth((user) => {
+      clearTimeout(timer);
+      finish(user);
+    }).then((unsubscribe) => {
+      stop = unsubscribe;
+      if (done) unsubscribe();
+    }).catch(() => {
+      clearTimeout(timer);
+      finish(null);
     });
   });
 }
