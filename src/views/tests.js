@@ -5,6 +5,7 @@ import { AP_EXAMS, EXAMS, SEED_QUESTIONS, scoreAttempt } from "../exams.js";
 import { geminiText } from "../cloud.js";
 import { parseQuiz } from "../generated.js";
 import { uid } from "../data.js";
+import { openCalculator } from "../examcalc.js";
 
 export function mountTests(root) {
   const view = shell(root, { title: "Test prep", tab: "tests" });
@@ -46,6 +47,8 @@ async function startExam(id, exam, paint) {
   const answers = [];
   const all = [];
   const stage = examOverlay();
+  const opts = await stage.setup(exam);
+  if (!opts) return;
   try {
     for (let index = 0; index < exam.sections.length; index += 1) {
       const section = exam.sections[index];
@@ -55,7 +58,7 @@ async function startExam(id, exam, paint) {
       stage.loading(`Building ${section.name}`, 0, section.questions);
       const questions = await loadSection(exam, section, harder, (done) => stage.loading(`Building ${section.name}`, done, section.questions));
       if (stage.cancelled) throw new Error("cancelled");
-      const result = await runModule(section, questions, stage);
+      const result = await runModule(section, questions, stage, opts);
       all.push(...questions);
       answers.push(...result);
     }
@@ -64,8 +67,9 @@ async function startExam(id, exam, paint) {
     if (error?.message !== "cancelled") toast(`Could not build the test: ${String(error?.message || error).slice(0, 120)}. Please try again.`);
     return;
   }
-  stage.close();
   const scored = scoreAttempt(all, answers);
+  await stage.review(all, answers, scored);
+  stage.close();
   update((data) => {
     data.testAttempts.unshift({ id: uid(), exam: exam.name, at: new Date().toISOString(), correct: scored.correct, total: scored.total, weak: scored.weak });
     for (const topic of scored.weak) {
@@ -92,6 +96,45 @@ function examOverlay() {
       );
     },
     close() { layer.remove(); },
+    setup(examDef) {
+      const hasMath = examDef.sections.some((sec) => /math|science/i.test(sec.kind || sec.name));
+      return new Promise((resolve) => {
+        const practice = h("input", { type: "checkbox", "data-testid": "toggle-practice" });
+        const calc = h("input", { type: "checkbox", "data-testid": "toggle-calc", checked: hasMath });
+        const row = (box, title, sub) => h("label", { class: "card", style: "display:flex;gap:12px;align-items:flex-start;padding:12px;cursor:pointer" }, [box, h("span", {}, [h("strong", {}, title), h("br"), h("span", { class: "hint" }, sub)])]);
+        practice.style.cssText = calc.style.cssText = "width:22px;height:22px;flex:none;margin-top:2px";
+        panel.replaceChildren(h("div", { class: "stack" }, [
+          h("h2", {}, `${examDef.name} setup`),
+          row(practice, "Show answers after each question", "Practice mode: see right or wrong and a short explanation after every question. Leave off for a real-test run."),
+          hasMath ? row(calc, "Calculator", "Adds a scientific and graphing calculator button on math sections.") : null,
+          h("p", { class: "hint" }, "Academic honesty: use ARAHA only for practice, never during a real exam or graded work."),
+          h("button", { type: "button", class: "btn gold", "data-testid": "exam-begin", onClick: () => resolve({ practice: practice.checked, calculator: hasMath && calc.checked }) }, "Begin test"),
+          h("button", { type: "button", class: "btn ghost", onClick: () => { api.close(); resolve(null); } }, "Cancel"),
+        ]));
+      });
+    },
+    review(questions, answers, scored) {
+      return new Promise((resolve) => {
+        const letters = "ABCD";
+        panel.replaceChildren(h("div", { class: "stack", "data-testid": "exam-review" }, [
+          h("h2", {}, `Score: ${scored.correct} of ${scored.total}`),
+          h("p", { class: "hint" }, scored.weak.length ? `Weak topics added to your study plan: ${scored.weak.join(", ")}` : "Great work. No weak topics this time."),
+          ...questions.map((q, i) => {
+            const picked = answers[i];
+            const ok = picked === q.answer;
+            return h("article", { class: "card stack", style: `border-left:4px solid ${ok ? "#2fbf71" : "#e5484d"}` }, [
+              h("p", { class: "hint" }, `Question ${i + 1} · ${ok ? "Correct" : picked == null ? "Not answered" : "Incorrect"}`),
+              h("p", { style: "white-space:pre-wrap" }, q.prompt),
+              picked != null && !ok ? h("p", {}, `Your answer: ${letters[picked]}. ${q.choices[picked]}`) : null,
+              h("p", {}, h("strong", {}, `Correct answer: ${letters[q.answer]}. ${q.choices[q.answer]}`)),
+              q.explain ? h("p", { class: "hint" }, `Why: ${q.explain}`) : null,
+            ]);
+          }),
+          h("button", { type: "button", class: "btn gold", onClick: () => resolve() }, "Done"),
+        ]));
+        layer.scrollTop = 0;
+      });
+    },
   };
   return api;
 }
@@ -111,7 +154,7 @@ async function loadSection(exam, section, harder, onProgress) {
   let done = 0;
   const one = async (count) => {
     const raw = await batchWithRetry(() => geminiText({
-      system: `Write ${count} original ${section.kind} questions in the style of ${exam.name}. ${harder ? "Make this second module harder." : "Make this module a fair opening set."} Do not copy official items. Use exactly:\nQ: question\nA: choice\nB: choice\nC: choice\nD: choice\nAnswer: B\nWhy: explanation\n---`,
+      system: `Write ${count} original ${section.kind} questions in the style of ${exam.name}. ${harder ? "Make this second module harder." : "Make this module a fair opening set."} Do not copy official items. Use exactly:\nQ: question\nA: choice\nB: choice\nC: choice\nD: choice\nAnswer: B\nWhy: one or two short sentences explaining why the correct answer is right\n---`,
       messages: [{ role: "user", content: `Section: ${section.name}. Topic label to repeat in Why is fine. No hints inside the question.` }],
       data: session.data,
     }));
@@ -129,13 +172,13 @@ async function loadSection(exam, section, harder, onProgress) {
   return batches.slice(0, section.questions);
 }
 
-function runModule(section, questions, stage) {
+function runModule(section, questions, stage, opts = {}) {
   return new Promise((resolve) => {
     const root = document.getElementById("main");
     const answers = [];
     let index = 0;
     let seconds = section.minutes * 60;
-    const host = h("div", { class: "stack" });
+    const host = h("div", { class: "stack", style: "position:relative;padding-top:8px" });
     const timer = h("p", { class: "due", "data-testid": "exam-timer" }, formatTime(seconds));
     const tick = window.setInterval(() => {
       seconds -= 1;
@@ -156,16 +199,31 @@ function runModule(section, questions, stage) {
       host.replaceChildren(
         h("p", { class: "hint" }, `${section.name} · ${index + 1} of ${questions.length}. You cannot return to an earlier module.`),
         timer,
+        opts.calculator && /math|science/i.test(section.kind || section.name) ? h("button", { type: "button", "data-testid": "open-calc", "aria-label": "Open calculator", title: "Calculator", onClick: openCalculator, style: "position:absolute;top:12px;right:12px;width:44px;height:44px;border-radius:12px;font-size:22px;line-height:1;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:inherit" }, "🧮") : null,
         h("p", { style: "white-space:pre-wrap" }, question.prompt),
         ...question.choices.map((choice, choiceIndex) => h("button", {
           type: "button",
           class: "btn ghost",
           onClick: () => {
             answers[index] = choiceIndex;
+            if (opts.practice) return feedback(choiceIndex);
             index += 1;
             draw();
           },
-        }, choice)),
+        }, `${"ABCD"[choiceIndex]}. ${choice}`)),
+      );
+    };
+    const feedback = (picked) => {
+      const question = questions[index];
+      const ok = picked === question.answer;
+      host.replaceChildren(
+        h("p", { class: "hint" }, `${section.name} · ${index + 1} of ${questions.length}`),
+        timer,
+        h("p", { style: "white-space:pre-wrap" }, question.prompt),
+        h("p", { "data-testid": "practice-feedback", style: `font-weight:700;color:${ok ? "#2fbf71" : "#e5484d"}` }, ok ? "Correct!" : `Not quite. You picked ${"ABCD"[picked]}.`),
+        h("p", {}, h("strong", {}, `Correct answer: ${"ABCD"[question.answer]}. ${question.choices[question.answer]}`)),
+        question.explain ? h("p", { class: "hint" }, `Why: ${question.explain}`) : null,
+        h("button", { type: "button", class: "btn gold", onClick: () => { index += 1; draw(); } }, index + 1 < questions.length ? "Next question" : "Finish section"),
       );
     };
     if (stage) { stage.panel.replaceChildren(host); stage.panel.scrollIntoView?.(); } else root.querySelector(".wrap")?.append(host);
