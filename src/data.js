@@ -305,6 +305,8 @@ export function normalizeData(raw) {
       label: str(row.label, 200),
     }), 300),
     collegePlan: d.collegePlan && typeof d.collegePlan === "object" && d.collegePlan.raw ? {
+      v: Number(d.collegePlan.v) || 1,
+      mode: d.collegePlan.mode === "starter" ? "starter" : "full",
       at: str(d.collegePlan.at, 40),
       raw: str(d.collegePlan.raw, 40000),
       dream: str(d.collegePlan.dream, LIMITS.short),

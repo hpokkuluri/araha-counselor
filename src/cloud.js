@@ -1,8 +1,8 @@
 import { emptyData, normalizeData } from "./data.js";
-import { profileBlock } from "./prompts.js";
+import { TONE, profileBlock } from "./prompts.js";
 import { GEMINI_MODEL, fcmVapidKey, getFirebaseApp } from "./firebase.js";
 
-const ENCOURAGE = "Never discourage the student. If something is missing or behind, say so calmly and give a concrete catch-up plan for this year.";
+const ENCOURAGE = TONE;
 
 export async function watchAuth(onUser) {
   const { auth } = await getFirebaseApp();
@@ -97,7 +97,7 @@ export async function geminiText({ system, messages, data, onDelta, shouldStop }
   const history = (messages || []).map((item) => `${item.role === "assistant" ? "Counselor" : "Student"}: ${item.content}`).join("\n");
   const prompt = [
     system || "You are ARAHA, a high school counselor.",
-    ENCOURAGE,
+    String(system || "").includes(TONE) ? "" : ENCOURAGE,
     "Student profile:",
     profileBlock(data || { profile: {}, plan: { 9: [], 10: [], 11: [], 12: [] }, colleges: [], careers: [], scholarships: [] }),
     history ? `Conversation:\n${history}` : "",
@@ -120,7 +120,7 @@ export async function geminiImage({ system, prompt, file, data }) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   const result = await generative.generateContent([
-    { text: `${system}\n\n${ENCOURAGE}\n\nStudent profile:\n${profileBlock(data)}\n\n${prompt}` },
+    { text: `${system}\n\n${String(system || "").includes(TONE) ? "" : ENCOURAGE}\n\nStudent profile:\n${profileBlock(data)}\n\n${prompt}` },
     { inlineData: { mimeType: file.type || "image/jpeg", data: btoa(binary) } },
   ]);
   return result.response.text();
