@@ -24,6 +24,30 @@ export const ESSAY_KINDS = [
   ["scholarship", "Scholarship"],
   ["other", "Other"],
 ];
+export const ADULT_GOALS = [
+  ["", "Select a goal"],
+  ["career-change", "Career change"],
+  ["education", "Further education"],
+  ["job-search", "Job search"],
+  ["promotion", "Promotion"],
+  ["other", "Other"],
+];
+export const EDUCATION_LEVELS = [
+  ["", "Select"],
+  ["high-school", "High school / GED"],
+  ["some-college", "Some college"],
+  ["associate", "Associate degree"],
+  ["bachelor", "Bachelor's degree"],
+  ["master", "Master's degree"],
+  ["doctorate", "Doctorate / professional"],
+];
+
+export function isAdult(profile) {
+  if (profile?.kind === "adult") return true;
+  const year = Number(profile?.birthYear);
+  return Boolean(year > 1900 && new Date().getFullYear() - year >= 18);
+}
+
 export const GOAL_CHOICES = [
   ["", "Select a direction"],
   ["undecided", "Undecided"],
@@ -90,6 +114,16 @@ export function emptyData() {
 function emptyProfile() {
   return {
     name: "",
+    kind: "student",
+    birthYear: "",
+    education: "",
+    field: "",
+    job: "",
+    experience: "",
+    skills: "",
+    adultGoal: "",
+    workPref: "",
+    budgetTime: "",
     grade: "",
     school: "",
     town: "",
@@ -139,6 +173,17 @@ export function normalizeData(raw) {
     version: 1,
     profile: {
       name: str(profile.name, LIMITS.short),
+      kind: profile.kind === "adult" ? "adult" : "student",
+      birthYear: str(profile.birthYear, 4),
+      education: str(profile.education, LIMITS.mid),
+      field: str(profile.field, LIMITS.mid),
+      job: str(profile.job, LIMITS.mid),
+      experience: str(profile.experience, LIMITS.long),
+      skills: str(profile.skills, LIMITS.long),
+      adultGoal: str(profile.adultGoal, LIMITS.mid),
+      workPref: str(profile.workPref, LIMITS.mid),
+      budgetTime: str(profile.budgetTime, LIMITS.mid),
+
       grade: oneOf(String(profile.grade || ""), ["9", "10", "11", "12"], ""),
       school: str(profile.school, LIMITS.short),
       town: str(profile.town, LIMITS.short),
@@ -306,6 +351,7 @@ export function normalizeData(raw) {
     }), 300),
     collegePlan: d.collegePlan && typeof d.collegePlan === "object" && d.collegePlan.raw ? {
       v: Number(d.collegePlan.v) || 1,
+      adult: Boolean(d.collegePlan.adult),
       mode: d.collegePlan.mode === "starter" ? "starter" : "full",
       at: str(d.collegePlan.at, 40),
       raw: str(d.collegePlan.raw, 40000),

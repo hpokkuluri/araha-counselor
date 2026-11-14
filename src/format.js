@@ -42,6 +42,12 @@ export function allUpcoming(data) {
 export function profileGaps(profile) {
   const gaps = [];
   if (!profile.name.trim()) gaps.push("your name");
+  if (profile.kind === "adult") {
+    if (!profile.education) gaps.push("your education");
+    if (!profile.job?.trim() && !profile.skills?.trim()) gaps.push("your job or skills");
+    if (!profile.adultGoal && !profile.goals.trim()) gaps.push("a goal");
+    return gaps;
+  }
   if (!profile.grade) gaps.push("your grade");
   if (!profile.school.trim()) gaps.push("your school");
   if (!profile.goalChoice && !profile.goals.trim()) gaps.push("a goal");

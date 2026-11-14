@@ -1,7 +1,9 @@
 import { h, field, txt, area, select, toast } from "../dom.js";
 import { shell } from "../shell.js";
 import { session, update } from "../session.js";
-import { GOAL_CHOICES, GPA_SCALES, GPA_WEIGHT, LEVELS, uid } from "../data.js";
+import { ADULT_GOALS, EDUCATION_LEVELS, GOAL_CHOICES, GPA_SCALES, GPA_WEIGHT, LEVELS, isAdult, uid } from "../data.js";
+import { newTag, markSeen } from "../newtag.js";
+import { refresh } from "../nav.js";
 import { COURSE_SUGGESTIONS, LIST_NOTE, TEST_SUGGESTIONS } from "../lists.js";
 import { SCHOOL_FILE, findSchools, loadReference } from "../reference.js";
 
@@ -29,6 +31,45 @@ export function mountProfile(root) {
   const p2 = bind(txt({ placeholder: "e.g. parent name" }), profile.parent2Name, (data, value) => { data.profile.parent2Name = value; });
   const e2 = bind(txt({ type: "email", placeholder: "e.g. parent@email.com", "data-testid": "parent2-email" }), profile.parent2Email, (data, value) => { data.profile.parent2Email = value; });
 
+  const adult = isAdult(profile);
+  const kind = select([["student", "Student (high school)"], ["adult", "Adult (18+)"]], adult ? "adult" : "student", { "data-testid": "profile-kind" });
+  kind.addEventListener("change", () => {
+    markSeen("adult-mode");
+    update((data) => { data.profile.kind = kind.value; if (kind.value === "student") data.profile.birthYear = ""; });
+    refresh();
+  });
+  const birthYear = txt({ placeholder: "e.g. 1990", inputmode: "numeric", value: profile.birthYear || "", "data-testid": "profile-birthyear" });
+  birthYear.addEventListener("change", () => {
+    const year = birthYear.value.trim().slice(0, 4);
+    const wasAdult = isAdult(session.data.profile);
+    update((data) => {
+      data.profile.birthYear = year;
+      const age = new Date().getFullYear() - Number(year);
+      if (Number(year) > 1900) data.profile.kind = age >= 18 ? "adult" : "student";
+    });
+    if (isAdult(session.data.profile) !== wasAdult) refresh();
+  });
+  const typeCard = h("section", { class: "card stack", "data-testid": "profile-type" }, [
+    h("h2", {}, ["I am a", newTag("adult-mode")]),
+    h("div", { class: "grid-2" }, [field("Profile type", kind), field("Birth year (optional)", birthYear, "18 or older switches to adult counseling.")]),
+  ]);
+  const ab = (key, node, ev = "input") => bind(node, profile[key], (data, value) => { data.profile[key] = value; }, ev);
+  const adultFields = [
+    h("h2", { class: "sec-h" }, "Education and work"),
+    h("div", { class: "grid-2" }, [field("Town", town), field("State", region)]),
+    field("Highest education", ab("education", select(EDUCATION_LEVELS, profile.education, { "data-testid": "adult-education" }), "change")),
+    field("Field of study", ab("field", txt({ placeholder: "e.g. business, nursing, none yet" }))),
+    field("Current job / title", ab("job", txt({ placeholder: "e.g. retail store manager", "data-testid": "adult-job" }))),
+    field("Years of experience", ab("experience", txt({ placeholder: "e.g. 6 years in retail, 2 in logistics" }))),
+    field("Skills", ab("skills", area({ placeholder: "e.g. team leadership, Excel, customer service" }))),
+    field("Main goal", ab("adultGoal", select(ADULT_GOALS, profile.adultGoal, { "data-testid": "adult-goal" }), "change")),
+    field("Goals in your words", goals),
+    field("Location / remote preference", ab("workPref", txt({ placeholder: "e.g. remote or near Princeton, NJ" }))),
+    field("Budget and time available", ab("budgetTime", txt({ placeholder: "e.g. $2k, 8 hours a week, evenings" }))),
+    field("Interests", interests),
+    h("button", { class: "btn primary wide", type: "submit", "data-testid": "profile-save" }, "Save profile"),
+  ];
+
   const classes = h("div", { class: "stack" });
   const tests = h("div", { class: "stack" });
   const drawLists = () => {
@@ -37,8 +78,16 @@ export function mountProfile(root) {
   };
   drawLists();
 
-  form.append(
+  if (adult) {
+    form.append(
+      h("p", { class: "lede" }, "This is the context your counselor uses. Example hints are placeholders, not your record."),
+      typeCard,
+      field("Name", name),
+      ...adultFields,
+    );
+  } else form.append(
     h("p", { class: "lede" }, "This is the context your counselor and essay coach use. Example hints are placeholders, not your record."),
+    typeCard,
     field("Name", name),
     h("div", { class: "grid-2" }, [field("Grade", grade), field("School", school)]),
     h("div", { class: "grid-2" }, [field("Town", town), field("State", region)]),
@@ -71,7 +120,7 @@ export function mountProfile(root) {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     update((data) => {
-      if (data.profile.name.trim() && data.profile.grade) data.profile.intakeDone = true;
+      if (data.profile.name.trim() && (data.profile.grade || isAdult(data.profile))) data.profile.intakeDone = true;
     });
     toast("Profile saved on this device.");
   });

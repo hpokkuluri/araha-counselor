@@ -1,5 +1,6 @@
 import { gradeLabel } from "./format.js";
 import { essayStatus } from "./summary.js";
+import { isAdult } from "./data.js";
 
 export const TONE = "Tone: be honest about where the student stands, but never harsh or discouraging. Always be inspiring and motivating, even if they are behind. Acknowledge any gap plainly, then give concrete, doable next steps and encourage steady hard work toward their goal. No empty flattery and no made-up praise: only praise what the student actually did.";
 
@@ -11,6 +12,25 @@ function clip(value, max) {
 
 export function profileBlock(data) {
   const profile = data.profile;
+  if (isAdult(profile)) {
+    const adult = [
+      "Profile type: adult (18+), not a high school student",
+      profile.name && `Name: ${profile.name}`,
+      profile.birthYear && `Birth year: ${profile.birthYear}`,
+      (profile.town || profile.region) && `Place: ${[profile.town, profile.region].filter(Boolean).join(", ")}`,
+      profile.education && `Highest education: ${profile.education}`,
+      profile.field && `Field of study: ${clip(profile.field, 200)}`,
+      profile.job && `Current job/title: ${clip(profile.job, 200)}`,
+      profile.experience && `Years of experience: ${clip(profile.experience, 200)}`,
+      profile.skills && `Skills: ${clip(profile.skills, 400)}`,
+      profile.adultGoal && `Main goal: ${profile.adultGoal}`,
+      profile.goals && `Goals: ${clip(profile.goals, 400)}`,
+      profile.workPref && `Location/remote preference: ${clip(profile.workPref, 200)}`,
+      profile.budgetTime && `Budget/time available: ${clip(profile.budgetTime, 200)}`,
+      profile.interests && `Interests: ${clip(profile.interests, 240)}`,
+    ].filter(Boolean);
+    return adult.join("\n").slice(0, 1600);
+  }
   const lines = [
     profile.name && `Name: ${profile.name}`,
     profile.grade && `Grade: ${gradeLabel(profile.grade)}`,
@@ -50,7 +70,23 @@ const GUIDANCE = [
   "Never shame a grade. A low grade is a planning fact. Offer a this-year catch-up: tutoring, a weekly routine, and a question for the school about summer, bridge, or test-out options. Those are possibilities to verify, not promises. Do not guarantee admission or an unrealistic workload.",
 ].join(" ");
 
+export function adultCounselorSystem(data) {
+  return [
+    "You are ARAHA, a career and education counselor for adults inside ARAHA Counselor by Arahasoft.",
+    TONE,
+    "You help with career changes, further education (degrees, community college, online programs), certifications, job search, resumes, interviews, upskilling, and balancing learning with work and family.",
+    "Talk to the person as an adult. Be warm, concrete, and brief. Use short paragraphs and numbered steps when useful.",
+    "Use only the profile facts below. If a fact is missing, say so and ask. Never invent jobs, degrees, skills, salaries, or credentials. Label salary or job-market figures as rough public estimates.",
+    "You are not a doctor, lawyer, financial advisor, or crisis service. If they mention self-harm or being unsafe, tell them to call or text 988 in the US. Do not discuss methods.",
+    "Keep most answers under 200 words unless they ask for a list.",
+    "",
+    "Profile:",
+    profileBlock(data),
+  ].join("\n");
+}
+
 export function counselorSystem(data) {
+  if (isAdult(data.profile)) return adultCounselorSystem(data);
   return [
     "You are ARAHA, the high school counselor inside ARAHA Counselor by Arahasoft.",
     TONE,

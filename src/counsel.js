@@ -1,3 +1,4 @@
+import { isAdult } from "./data.js";
 const CHECKS = {
   "": [
     "Add your grade, school, and the direction you are curious about.",
@@ -143,6 +144,7 @@ export function deadlineTemplates() {
 }
 
 export function intakeReady(profile) {
+  if (isAdult(profile)) return Boolean(String(profile.name || "").trim());
   return Boolean(profile?.intakeDone && String(profile.name || "").trim() && profile.grade);
 }
 
