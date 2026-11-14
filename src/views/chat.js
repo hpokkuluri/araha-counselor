@@ -23,7 +23,7 @@ export function mountChat(root, draft = "") {
     system: () => counselorSystem(session.data),
     activity: "counselor",
     activityLabel: "Counselor chat",
-    maxTokens: 700,
+    maxTokens: 1200,
   });
   return { unmount: view.destroy };
 }

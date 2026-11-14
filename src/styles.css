@@ -488,3 +488,15 @@ body.ap-open { overflow: hidden; }
 }
 
 .new-tag { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 99px; background: var(--gold); color: #0E1B3D; font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; vertical-align: middle; line-height: 1.5; font-style: normal; }
+
+/* Chat: fill the visual viewport; only the message list scrolls */
+html:has(body.thread-mode), body.thread-mode { overflow: hidden; height: 100%; overscroll-behavior: none; }
+body.thread-mode .shell { position: fixed; left: 0; right: 0; top: var(--vvtop, 0px); height: var(--vvh, 100dvh); }
+body.thread-mode .main { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 0; scroll-padding-bottom: 0; }
+body.thread-mode .main > .wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 0; }
+body.thread-mode .thread { flex: 1; min-height: 0; }
+body.thread-mode .chat { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+body.thread-mode .composer { position: static; flex: none; background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; border-top: 1px solid var(--line); padding: 8px 0 calc(8px + var(--safe-b)); }
+body.thread-mode.kb-open .composer { padding-bottom: 8px; }
+body.thread-mode.kb-open .tabbar, body.thread-mode.kb-open .crisis, body.thread-mode.kb-open .composer-tools { display: none; }
+body.thread-mode .composer textarea { font-size: 16px; min-height: 44px; max-height: 120px; resize: none; }
