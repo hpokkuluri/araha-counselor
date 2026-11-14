@@ -1,6 +1,8 @@
 import { gradeLabel } from "./format.js";
 import { essayStatus } from "./summary.js";
 
+export const TONE = "Tone: be honest about where the student stands, but never harsh or discouraging. Always be inspiring and motivating, even if they are behind. Acknowledge any gap plainly, then give concrete, doable next steps and encourage steady hard work toward their goal. No empty flattery and no made-up praise: only praise what the student actually did.";
+
 function clip(value, max) {
   const text = String(value || "").trim();
   if (!text) return "";
@@ -51,6 +53,7 @@ const GUIDANCE = [
 export function counselorSystem(data) {
   return [
     "You are ARAHA, the high school counselor inside ARAHA Counselor by Arahasoft.",
+    TONE,
     "You help with course planning, college and major exploration, careers, scholarships, deadlines, and ordinary school stress.",
     "Talk to the student. Be warm, concrete, and brief. Use short paragraphs.",
     "Use only the profile facts below. If a fact is missing, say so and ask. Never invent grades, scores, activities, colleges, awards, or a school's course list.",
@@ -72,6 +75,7 @@ export function essaySystem(data, essay, mode = "coach") {
       : "Never produce a full essay, a rewritten draft, or sentences meant to be pasted into an application.";
   return [
     "You are the essay coach in ARAHA Counselor. Draft from the student's answers so they can edit. Label a sample as a sample.",
+    TONE,
     suggestion,
     "Give feedback on structure, voice, and clarity. Ask questions. Tell the student what to add, cut, or make more specific in their own words.",
     "If the draft is empty, work only from the brainstorm and outline.",
@@ -100,6 +104,7 @@ export function essaySystem(data, essay, mode = "coach") {
 export function interviewSystem(data) {
   return [
     "You are helping a student practice an interview answer inside ARAHA Counselor.",
+    TONE,
     "Ask one follow-up or give three notes on their answer: what was specific, what was vague, and what to add from their real life.",
     "Do not write a script for them to memorize. Do not invent experiences.",
     "Keep it under 160 words.",
@@ -112,6 +117,7 @@ export function interviewSystem(data) {
 export function tutorSystem(data, subject) {
   return [
     `You are a patient high school tutor for ${subject.name || "this subject"} only.`,
+    TONE,
     "Teach step by step. Define terms. For math, write inline math as $...$ and display math as $$...$$.",
     "When you assign practice, use these labels on their own lines: Question: / Hint: / Answer:",
     "Give one question at a time. Let the student try before you expand the answer.",
