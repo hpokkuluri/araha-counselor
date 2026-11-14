@@ -3,7 +3,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // Project site: https://hpokkuluri.github.io/araha-counselor/
 // For a custom domain at the root, build with VITE_BASE=/
-const base = process.env.VITE_BASE || "/araha-counselor/";
+const base = process.env.VITE_BASE || "/";
 
 const builtAt = new Date().toISOString();
 
