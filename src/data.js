@@ -78,6 +78,7 @@ export function emptyData() {
     testPlan: "",
     studyPlan: [],
     testAttempts: [],
+    collegePlan: null,
     shareNote: "",
     parentPin: null,
     settings: { wifiOnly: true, modelId: "", modelPick: "auto", preferLocal: false },
@@ -303,6 +304,15 @@ export function normalizeData(raw) {
       kind: str(row.kind, 40),
       label: str(row.label, 200),
     }), 300),
+    collegePlan: d.collegePlan && typeof d.collegePlan === "object" && d.collegePlan.raw ? {
+      at: str(d.collegePlan.at, 40),
+      raw: str(d.collegePlan.raw, 40000),
+      dream: str(d.collegePlan.dream, LIMITS.short),
+      budget: str(d.collegePlan.budget, LIMITS.short),
+      location: str(d.collegePlan.location, LIMITS.short),
+      major: str(d.collegePlan.major, LIMITS.short),
+      done: list(d.collegePlan.done, (item) => str(item, 300), 200),
+    } : null,
     shareNote: str(d.shareNote, 2000),
     parentPin: pin && pin.salt && pin.verifier ? {
       salt: str(pin.salt, 80),

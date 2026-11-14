@@ -7,6 +7,7 @@ import { captureControls } from "../capture.js";
 import { complete, currentModelId, fitModelChoice, loadModel, modelCached } from "../ai.js";
 import { interviewSystem } from "../prompts.js";
 import { navigate } from "../nav.js";
+import { openApplicationPreview } from "./apppreview.js";
 
 export function mountApplication(root) {
   const view = shell(root, { title: "My application", tab: "plan", back: "/home" });
@@ -17,6 +18,7 @@ export function mountApplication(root) {
     host.replaceChildren(
       h("h1", { class: "display small" }, ["My ", h("em", {}, "application")]),
       h("p", { class: "lede" }, "This preview uses ARAHA's own layout. It is not the Common App and it does not copy that form."),
+      h("button", { type: "button", class: "btn gold wide hero-btn", "data-testid": "preview-application", onClick: () => openApplicationPreview(session.data) }, "✨ Preview my application"),
       h("section", { class: "card stack" }, [
         h("h2", {}, report.label),
         h("ul", { class: "plain" }, report.items.map((item) => h("li", {}, `${item.done ? "Done" : "Open"} · ${item.label}`))),

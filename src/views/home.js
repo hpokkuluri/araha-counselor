@@ -40,6 +40,16 @@ export function mountHome(root) {
       "data-testid": "open-chat",
       onClick: () => navigate("/chat"),
     }, ["Talk with your counselor", icon("chevron")]),
+    h("button", {
+      type: "button",
+      class: "card linkcard",
+      "data-testid": "goto-college-plan",
+      style: { borderLeft: "4px solid var(--gold)" },
+      onClick: () => navigate("/college-plan"),
+    }, [
+      h("b", {}, "🎯 Your college plan"),
+      h("span", {}, session.data.collegePlan ? "Your strengths, growth areas, college list, and semester plan." : "Get a personal college list and a semester-by-semester plan to reach it."),
+    ]),
     h("div", { class: "stats" }, [
       stat(String(data.colleges.length), "Colleges"),
       stat(String(upcoming.length || openDates), "Coming up"),
