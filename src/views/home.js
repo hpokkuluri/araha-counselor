@@ -1,4 +1,5 @@
 import { h } from "../dom.js";
+import { newTag } from "../newtag.js";
 import { shell } from "../shell.js";
 import { navigate } from "../nav.js";
 import { session, usesCloud } from "../session.js";
@@ -47,7 +48,7 @@ export function mountHome(root) {
       style: { borderLeft: "4px solid var(--gold)" },
       onClick: () => navigate("/college-plan"),
     }, [
-      h("b", {}, "🎯 Your college plan"),
+      h("b", {}, ["🎯 Your college plan", newTag("college-plan")]),
       h("span", {}, session.data.collegePlan ? "Your strengths, growth areas, college list, and semester plan." : "Get a personal college list and a semester-by-semester plan to reach it."),
     ]),
     h("div", { class: "stats" }, [

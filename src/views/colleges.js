@@ -1,4 +1,5 @@
 import { h } from "../dom.js";
+import { newTag } from "../newtag.js";
 import { shell } from "../shell.js";
 import { mountCollection } from "../collection.js";
 import { COLLEGE_BANDS, COLLEGE_STATUS, pushActivity, uid } from "../data.js";
@@ -11,7 +12,7 @@ import { navigate } from "../nav.js";
 export function mountColleges(root) {
   const view = shell(root, { title: "Colleges", tab: "plan", back: "/plan" });
   view.content.append(
-    h("button", { type: "button", class: "btn gold wide", "data-testid": "colleges-plan", onClick: () => navigate("/college-plan") }, "🎯 Get my college plan and suggested list"),
+    h("button", { type: "button", class: "btn gold wide", "data-testid": "colleges-plan", onClick: () => navigate("/college-plan") }, ["🎯 Get my college plan and suggested list", newTag("college-plan")]),
     h("p", { class: "lede" }, "Save colleges you want to understand. Reach, target, and likely are your labels, not a calculated chance."),
     h("p", { class: "hint" }, "ARAHA does not download college sites and does not refresh them in the background. Type what you read, where you read it, and the date you checked. Saved notes can go out of date."),
     h("p", { class: "hint" }, LIST_NOTE),

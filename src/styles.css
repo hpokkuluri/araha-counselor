@@ -486,3 +486,5 @@ body.ap-open { overflow: hidden; }
   .ap-page { box-shadow: none; max-width: none; }
   .ap-head, .ap-bar i, .ap-avatar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+.new-tag { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 99px; background: var(--gold); color: #0E1B3D; font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; vertical-align: middle; line-height: 1.5; font-style: normal; }
