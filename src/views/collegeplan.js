@@ -6,6 +6,7 @@ import { pushActivity, uid } from "../data.js";
 import { geminiText } from "../cloud.js";
 import { navigate } from "../nav.js";
 import { TONE } from "../prompts.js";
+import { isAdult } from "../data.js";
 
 export const PLAN_VERSION = 2;
 
@@ -29,6 +30,13 @@ const s = (value) => (value == null ? "" : String(value));
 
 export function readiness(data, inputs = {}) {
   const p = data.profile;
+  if (isAdult(p)) {
+    const missing = [];
+    if (!p.education) missing.push("your highest education");
+    if (!p.job?.trim() && !p.skills?.trim() && !p.experience?.trim()) missing.push("your current job, experience, or skills");
+    if (!p.adultGoal && !p.goals?.trim() && !inputs.major) missing.push("your main goal");
+    return { ready: missing.length <= 1 && Boolean(p.adultGoal || p.goals?.trim() || inputs.major), missing, adult: true };
+  }
   const graded = p.classes.filter((c) => c.name?.trim() && c.grade?.trim());
   const areas = {
     academics: Boolean(p.gpa?.trim() || graded.length),
@@ -79,7 +87,31 @@ const RULES = [
   "- Every strength MUST cite specific data from the PROFILE JSON (e.g. \"GPA 3.8\", \"robotics club\"). Never use filler like \"starting early\", \"blank slate\", or \"motivation\". If no real strength is in the data, return \"strengths\": [].",
 ].join("\n");
 
+function adultPrompt(data, inputs, mode) {
+  const p = data.profile;
+  const json = JSON.stringify({
+    birthYear: p.birthYear || "unknown", location: [p.town, p.region].filter(Boolean).join(", ") || "unknown",
+    education: p.education || "unknown", fieldOfStudy: p.field || "unknown", currentJob: p.job || "unknown",
+    experience: p.experience || "unknown", skills: p.skills || "unknown", mainGoal: p.adultGoal || "unknown",
+    goals: p.goals || "unknown", workPreference: p.workPref || inputs.location || "unknown",
+    budgetAndTime: p.budgetTime || inputs.budget || "unknown", targetRoleOrField: inputs.major || "unknown", dreamSchoolOrEmployer: inputs.dream || "unknown",
+  }, null, 1);
+  return [
+    "Act as an experienced, honest career and education counselor for an adult (18+). This is NOT a high school student: no high school courses, no semesters of grade 9-12, no SAT.",
+    TONE,
+    RULES,
+    `PROFILE JSON:\n${json}`,
+    mode === "starter"
+      ? "The profile is thin. Do not name specific schools, employers, or programs. Give a generic starter plan to clarify goals and skills, and list what to fill in."
+      : "Give realistic options grounded in their education, experience, skills, goal, budget, and time: further education (degrees, community college, online programs), certifications, and career paths. Name well-known programs or certifications only when they genuinely fit, and label cost/salary figures as rough public estimates.",
+    "Reply with ONLY valid JSON, no markdown:",
+    '{"summary":"2 honest, encouraging sentences","strengths":["each citing real profile data"],"improve":[{"area":"...","fix":"concrete action"}],"paths":[{"name":"career path","reason":"why it fits their data","fit":"what transfers / gap"}],"education":[{"name":"degree or program type","reason":"...","fit":"cost/time estimate"}],"certifications":[{"name":"...","reason":"...","fit":"time/cost estimate"}],"plan":[{"term":"Months 1-3","learning":["..."],"certifications":["..."],"career":["..."],"network":["..."],"applications":["..."]}],"fillIn":["profile items still unknown"]}',
+    "2-4 items per list. Plan covers about 12-18 months in 4-6 steps. Plan items are short checklist actions.",
+  ].join("\n\n");
+}
+
 export function promptFor(data, inputs, mode) {
+  if (isAdult(data.profile)) return adultPrompt(data, inputs, mode);
   const grade = data.profile.grade || "unknown";
   const profileJSON = JSON.stringify(facts(data, inputs), null, 1);
   const shared = [
@@ -111,11 +143,12 @@ export function promptFor(data, inputs, mode) {
 
 export function mountCollegePlan(root) {
   markSeen("college-plan");
-  const view = shell(root, { title: "College plan", tab: "plan", back: "/home" });
+  const adult = isAdult(session.data.profile);
+  const view = shell(root, { title: adult ? "Career & education plan" : "College plan", tab: "plan", back: "/home" });
   const host = h("div", { class: "stack", "data-testid": "college-plan" });
   view.content.append(host);
   let busy = false;
-  const saved = () => (session.data.collegePlan?.v === PLAN_VERSION ? session.data.collegePlan : null);
+  const saved = () => (session.data.collegePlan?.v === PLAN_VERSION && Boolean(session.data.collegePlan.adult) === adult ? session.data.collegePlan : null);
   if (session.data.collegePlan && session.data.collegePlan.v !== PLAN_VERSION) update((data) => { data.collegePlan = null; });
 
   const paint = (status = "") => {
@@ -128,8 +161,8 @@ export function mountCollegePlan(root) {
     const go = h("button", { class: "btn gold wide", type: "submit", disabled: busy, "data-testid": "cp-generate" }, busy ? "Building your plan…" : !check.ready ? (plan ? "Refresh my starter plan" : "Get my starter plan") : plan ? "Regenerate my plan" : "Build my college plan");
     const form = h("form", { class: "card stack" }, [
       h("h2", {}, plan ? "Update your plan" : "Tell me a little more (optional)"),
-      field("Dream or target college", dream),
-      field("Intended major", major),
+      field(adult ? "Dream school, program, or employer" : "Dream or target college", dream),
+      field(adult ? "Target role or field" : "Intended major", major),
       field("Budget", budget),
       field("Location preference", location),
       go,
@@ -142,17 +175,17 @@ export function mountCollegePlan(root) {
       generate(inputs, readiness(session.data, inputs).ready ? "full" : "starter");
     });
     host.replaceChildren(
-      h("h1", { class: "display small" }, ["Your ", h("em", {}, "college plan")]),
-      h("p", { class: "lede" }, "Your counselor studies your real profile, finds your strengths and growth areas, suggests colleges that fit your numbers, and maps every semester to get there."),
+      h("h1", { class: "display small" }, adult ? ["Adult ", h("em", {}, "career & education plan")] : ["Your ", h("em", {}, "college plan")]),
+      h("p", { class: "lede" }, adult ? "Your counselor studies your education, experience, and goals, then lays out education options, certifications, career paths, and a step-by-step plan." : "Your counselor studies your real profile, finds your strengths and growth areas, suggests colleges that fit your numbers, and maps every semester to get there."),
       !check.ready ? h("section", { class: "card stack", "data-testid": "cp-know-you", style: { borderLeft: "4px solid var(--gold)" } }, [
         h("h2", {}, "Let's get to know you first"),
-        h("p", {}, "A good counselor never guesses. Suggesting colleges before I know your grades and what you love would just be guessing, so let's fill in a few things. It only takes a few minutes, and then your college list will be built around you."),
+        h("p", {}, adult ? "A good counselor never guesses. Tell me about your education, work, and goal, and your plan will be built around you." : "A good counselor never guesses. Suggesting colleges before I know your grades and what you love would just be guessing, so let's fill in a few things. It only takes a few minutes, and then your college list will be built around you."),
         h("ul", { class: "plain" }, check.missing.map((item) => h("li", {}, `📝 Add ${item}`))),
         h("div", { class: "composer-tools" }, [
           h("button", { type: "button", class: "btn primary", "data-testid": "cp-goto-profile", onClick: () => navigate("/profile") }, "Fill in My Profile"),
-          h("button", { type: "button", class: "btn ghost", onClick: () => navigate("/tests") }, "Take a practice test"),
+          adult ? null : h("button", { type: "button", class: "btn ghost", onClick: () => navigate("/tests") }, "Take a practice test"),
         ]),
-        h("p", { class: "hint" }, "Meanwhile, you can get a starter plan for your grade below. It won't name colleges yet."),
+        h("p", { class: "hint" }, adult ? "Meanwhile, you can get a starter plan below." : "Meanwhile, you can get a starter plan for your grade below. It won't name colleges yet."),
       ]) : null,
       plan ? renderPlan(plan, paint) : null,
       form,
@@ -188,7 +221,7 @@ export function mountCollegePlan(root) {
       return;
     }
     update((data) => {
-      data.collegePlan = { v: PLAN_VERSION, mode, at: new Date().toISOString(), raw, done: [], ...inputs };
+      data.collegePlan = { v: PLAN_VERSION, adult, mode, at: new Date().toISOString(), raw, done: [], ...inputs };
       pushActivity(data, "college", "Built a college plan");
     });
     paint();
@@ -250,7 +283,9 @@ function renderPlan(saved, paint) {
     ]);
   };
   const list = (title, items, render) => (arr(items).length ? h("section", { class: "card stack" }, [h("h2", {}, title), ...arr(items).map(render)]) : null);
-  const groups = [["courses", "Courses"], ["tests", "Test goals"], ["activities", "Activities and leadership"], ["summer", "Summer"], ["essays", "Essays"], ["applications", "Applications and deadlines"]];
+  const adultPlan = isAdult(session.data.profile) || Boolean(data.paths || data.certifications);
+  const options = (title, items, color) => (arr(items).length ? h("section", { class: "card stack" }, [h("h2", {}, title), ...arr(items).map((c) => h("div", { class: "card stack", style: `border-left:4px solid ${color};padding:12px` }, [h("b", {}, s(c.name || c)), c.reason ? h("span", {}, s(c.reason)) : null, c.fit ? h("span", { class: "hint" }, s(c.fit)) : null]))]) : null);
+  const groups = adultPlan ? [["learning", "Learning"], ["certifications", "Certifications"], ["career", "Career moves"], ["network", "Networking"], ["applications", "Applications"]] : [["courses", "Courses"], ["tests", "Test goals"], ["activities", "Activities and leadership"], ["summer", "Summer"], ["essays", "Essays"], ["applications", "Applications and deadlines"]];
   return h("div", { class: "stack" }, [
     data.summary ? h("section", { class: "card stack", style: "background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff" }, [
       h("p", { style: "margin:0;font-size:1.05rem;line-height:1.5" }, s(data.summary)),
@@ -263,7 +298,10 @@ function renderPlan(saved, paint) {
       item.fix ? h("p", { style: "margin:4px 0 0" }, ["→ ", s(item.fix)]) : null,
     ])),
     data.dreamGap ? h("section", { class: "card stack" }, [h("h2", {}, "Your dream school"), h("p", { style: "margin:0" }, s(data.dreamGap))]) : null,
-    saved.mode === "starter" || !data.colleges ? null : h("section", { class: "card stack", "data-testid": "cp-colleges" }, [
+    adultPlan ? options("Career paths", data.paths, "#1B5CEB") : null,
+    adultPlan ? options("Education options", data.education, "#16A34A") : null,
+    adultPlan ? options("Certifications", data.certifications, "#F2B33D") : null,
+    adultPlan || saved.mode === "starter" || !data.colleges ? null : h("section", { class: "card stack", "data-testid": "cp-colleges" }, [
       h("h2", {}, "Suggested colleges"),
       band("reach", "Reach", "#E2262E"),
       band("target", "Target", "#1B5CEB"),
@@ -271,7 +309,7 @@ function renderPlan(saved, paint) {
       h("p", { class: "hint" }, HINT),
     ]),
     arr(data.plan).length ? h("section", { class: "card stack", "data-testid": "cp-semesters" }, [
-      h("h2", {}, data.targetCollege ? `Semester plan to ${s(data.targetCollege)}` : "Semester-by-semester plan"),
+      h("h2", {}, adultPlan ? "Your step-by-step plan" : data.targetCollege ? `Semester plan to ${s(data.targetCollege)}` : "Semester-by-semester plan"),
       ...arr(data.plan).map((term, ti) => h("div", { class: "stack", style: "padding:10px 0;border-top:1px solid var(--line)" }, [
         h("h3", { style: "margin:0;color:var(--em)" }, s(term.term || `Step ${ti + 1}`)),
         ...groups.map(([key, label]) => (arr(term[key]).length ? h("div", {}, [

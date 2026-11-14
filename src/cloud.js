@@ -98,7 +98,7 @@ export async function geminiText({ system, messages, data, onDelta, shouldStop }
   const prompt = [
     system || "You are ARAHA, a high school counselor.",
     String(system || "").includes(TONE) ? "" : ENCOURAGE,
-    "Student profile:",
+    "Profile:",
     profileBlock(data || { profile: {}, plan: { 9: [], 10: [], 11: [], 12: [] }, colleges: [], careers: [], scholarships: [] }),
     history ? `Conversation:\n${history}` : "",
   ].filter(Boolean).join("\n\n");

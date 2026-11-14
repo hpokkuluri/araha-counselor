@@ -1,5 +1,6 @@
 import { h } from "../dom.js";
 import { newTag } from "../newtag.js";
+import { isAdult } from "../data.js";
 import { shell } from "../shell.js";
 import { navigate } from "../nav.js";
 import { session, usesCloud } from "../session.js";
@@ -48,8 +49,8 @@ export function mountHome(root) {
       style: { borderLeft: "4px solid var(--gold)" },
       onClick: () => navigate("/college-plan"),
     }, [
-      h("b", {}, ["🎯 Your college plan", newTag("college-plan")]),
-      h("span", {}, session.data.collegePlan ? "Your strengths, growth areas, college list, and semester plan." : "Get a personal college list and a semester-by-semester plan to reach it."),
+      h("b", {}, [isAdult(session.data.profile) ? "🎯 Your career & education plan" : "🎯 Your college plan", newTag("college-plan")]),
+      h("span", {}, isAdult(session.data.profile) ? "Education options, certifications, career paths, and a step-by-step plan." : session.data.collegePlan ? "Your strengths, growth areas, college list, and semester plan." : "Get a personal college list and a semester-by-semester plan to reach it."),
     ]),
     h("div", { class: "stats" }, [
       stat(String(data.colleges.length), "Colleges"),
@@ -68,7 +69,7 @@ export function mountHome(root) {
     h("h2", { class: "sec-h" }, "Coming up"),
   ];
   if (!intakeReady(profile)) nodes.splice(2, 0, intakeCard());
-  nodes.push(checklistCard(profile.grade), planCard(data), checkInCard(data));
+  nodes.push(isAdult(profile) ? null : checklistCard(profile.grade), isAdult(profile) ? null : planCard(data), checkInCard(data));
   view.content.append(...nodes.filter(Boolean));
   view.content.append(
     upcoming.length ? h("div", { class: "stack" }, upcoming.slice(0, 4).map((item) => (
@@ -139,7 +140,9 @@ async function saveRoadmap() {
   toast("Writing your summary…");
   try {
     const text = await geminiText({
-      system: "Write a calm counselor summary and a four-year roadmap from the profile. Use headings Summary and Roadmap. Never shame. If a course is not on the school list the student typed, tell them to ask the school.",
+      system: isAdult(session.data.profile)
+        ? "Write a calm career and education counselor summary and a 12-month roadmap for this adult from the profile: education options, certifications, career moves, job search steps. Use headings Summary and Roadmap. Never shame. Use only facts in the profile."
+        : "Write a calm counselor summary and a four-year roadmap from the profile. Use headings Summary and Roadmap. Never shame. If a course is not on the school list the student typed, tell them to ask the school.",
       messages: [{ role: "user", content: "Use my profile." }],
       data: session.data,
     });

@@ -6,6 +6,7 @@ const EXPIRES = {
   "app-preview": "2026-11-28",
   "practice-mode": "2026-11-28",
   calculator: "2026-11-28",
+  "adult-mode": "2026-11-28",
 };
 
 function seen() {
