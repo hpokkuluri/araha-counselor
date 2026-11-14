@@ -45,17 +45,26 @@ async function startExam(id, exam, paint) {
   }
   const answers = [];
   const all = [];
-  for (let index = 0; index < exam.sections.length; index += 1) {
-    const section = exam.sections[index];
-    if (section.optional && !window.confirm(`Include ${section.name}? Cancel skips this optional section.`)) continue;
-    const previous = index > 0 ? scoreAttempt(all, answers) : null;
-    const harder = previous && previous.total && previous.correct / previous.total >= 0.7;
-    toast(`Building ${section.name}…`);
-    const questions = await loadSection(exam, section, harder);
-    const result = await runModule(section, questions);
-    all.push(...questions);
-    answers.push(...result);
+  const stage = examOverlay();
+  try {
+    for (let index = 0; index < exam.sections.length; index += 1) {
+      const section = exam.sections[index];
+      if (section.optional && !window.confirm(`Include ${section.name}? Cancel skips this optional section.`)) continue;
+      const previous = index > 0 ? scoreAttempt(all, answers) : null;
+      const harder = previous && previous.total && previous.correct / previous.total >= 0.7;
+      stage.loading(`Building ${section.name}`, 0, section.questions);
+      const questions = await loadSection(exam, section, harder, (done) => stage.loading(`Building ${section.name}`, done, section.questions));
+      if (stage.cancelled) throw new Error("cancelled");
+      const result = await runModule(section, questions, stage);
+      all.push(...questions);
+      answers.push(...result);
+    }
+  } catch (error) {
+    stage.close();
+    if (error?.message !== "cancelled") toast(`Could not build the test: ${String(error?.message || error).slice(0, 120)}. Please try again.`);
+    return;
   }
+  stage.close();
   const scored = scoreAttempt(all, answers);
   update((data) => {
     data.testAttempts.unshift({ id: uid(), exam: exam.name, at: new Date().toISOString(), correct: scored.correct, total: scored.total, weak: scored.weak });
@@ -68,28 +77,59 @@ async function startExam(id, exam, paint) {
   paint();
 }
 
-async function loadSection(exam, section, harder) {
+function examOverlay() {
+  const panel = h("div", { class: "wrap stack", style: "max-width:640px;margin:0 auto;padding:16px" });
+  const layer = h("div", { "data-testid": "exam-overlay", style: "position:fixed;inset:0;z-index:50;overflow-y:auto;background:var(--bg, #0d1a33);padding-top:env(safe-area-inset-top)" }, panel);
+  document.body.append(layer);
+  const api = {
+    cancelled: false,
+    panel,
+    loading(label, done, total) {
+      panel.replaceChildren(
+        h("h2", {}, `${label}…`),
+        h("p", { class: "hint" }, `${done} of ${total} questions ready. This usually takes under a minute.`),
+        h("button", { type: "button", class: "btn ghost", onClick: () => { api.cancelled = true; api.close(); } }, "Cancel"),
+      );
+    },
+    close() { layer.remove(); },
+  };
+  return api;
+}
+
+async function batchWithRetry(fn, tries = 3) {
+  let last;
+  for (let attempt = 0; attempt < tries; attempt += 1) {
+    try { return await fn(); } catch (error) { last = error; await new Promise((r) => setTimeout(r, 1500 * (attempt + 1))); }
+  }
+  throw last;
+}
+
+async function loadSection(exam, section, harder, onProgress) {
+  const counts = [];
+  for (let left = section.questions; left > 0; left -= 5) counts.push(Math.min(5, left));
   const batches = [];
-  let left = section.questions;
-  while (left > 0) {
-    const count = Math.min(5, left);
-    const raw = await geminiText({
+  let done = 0;
+  const one = async (count) => {
+    const raw = await batchWithRetry(() => geminiText({
       system: `Write ${count} original ${section.kind} questions in the style of ${exam.name}. ${harder ? "Make this second module harder." : "Make this module a fair opening set."} Do not copy official items. Use exactly:\nQ: question\nA: choice\nB: choice\nC: choice\nD: choice\nAnswer: B\nWhy: explanation\n---`,
       messages: [{ role: "user", content: `Section: ${section.name}. Topic label to repeat in Why is fine. No hints inside the question.` }],
       data: session.data,
-    });
-    const parsed = parseQuiz(raw).map((item) => ({ ...item, topic: section.kind }));
-    if (!parsed.length) break;
+    }));
+    const parsed = parseQuiz(raw).slice(0, count).map((item) => ({ ...item, topic: section.kind }));
     batches.push(...parsed);
-    left -= parsed.length;
-  }
+    done += parsed.length;
+    onProgress?.(Math.min(done, section.questions));
+  };
+  const queue = [...counts];
+  const workers = Array.from({ length: 3 }, async () => { while (queue.length) await one(queue.shift()); });
+  await Promise.all(workers);
   if (!batches.length) {
     return SEED_QUESTIONS.filter((item) => item.kind === section.kind).slice(0, 2).map((item) => ({ ...item, topic: section.kind }));
   }
   return batches.slice(0, section.questions);
 }
 
-function runModule(section, questions) {
+function runModule(section, questions, stage) {
   return new Promise((resolve) => {
     const root = document.getElementById("main");
     const answers = [];
@@ -116,7 +156,7 @@ function runModule(section, questions) {
       host.replaceChildren(
         h("p", { class: "hint" }, `${section.name} · ${index + 1} of ${questions.length}. You cannot return to an earlier module.`),
         timer,
-        h("p", {}, question.prompt),
+        h("p", { style: "white-space:pre-wrap" }, question.prompt),
         ...question.choices.map((choice, choiceIndex) => h("button", {
           type: "button",
           class: "btn ghost",
@@ -128,7 +168,7 @@ function runModule(section, questions) {
         }, choice)),
       );
     };
-    root.querySelector(".wrap")?.append(host);
+    if (stage) { stage.panel.replaceChildren(host); stage.panel.scrollIntoView?.(); } else root.querySelector(".wrap")?.append(host);
     draw();
   });
 }

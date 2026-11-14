@@ -2,7 +2,8 @@ export function parseQuiz(text) {
   const blocks = String(text || "").split(/\n---\n|\nQ:/i).map((part, index) => (index === 0 ? part : `Q: ${part}`));
   const quizzes = [];
   for (const block of blocks) {
-    const prompt = line(block, "Q");
+    const qm = block.match(/^(?:Q:\s*)+([\s\S]*?)\n\s*A:/im);
+    const prompt = qm ? qm[1].trim() : line(block, "Q");
     const choices = ["A", "B", "C", "D"].map((letter) => line(block, letter)).filter(Boolean);
     const answerLetter = (line(block, "Answer") || "").trim().toUpperCase()[0];
     const answer = "ABCD".indexOf(answerLetter);
