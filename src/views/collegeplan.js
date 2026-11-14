@@ -1,4 +1,5 @@
 import { h, field, txt, toast } from "../dom.js";
+import { markSeen } from "../newtag.js";
 import { shell } from "../shell.js";
 import { session, update, usesCloud } from "../session.js";
 import { pushActivity, uid } from "../data.js";
@@ -109,6 +110,7 @@ export function promptFor(data, inputs, mode) {
 }
 
 export function mountCollegePlan(root) {
+  markSeen("college-plan");
   const view = shell(root, { title: "College plan", tab: "plan", back: "/home" });
   const host = h("div", { class: "stack", "data-testid": "college-plan" });
   view.content.append(host);

@@ -1,4 +1,5 @@
 import { h, toast } from "../dom.js";
+import { newTag, markSeen } from "../newtag.js";
 import { shell } from "../shell.js";
 import { session, update, usesCloud } from "../session.js";
 import { AP_EXAMS, EXAMS, SEED_QUESTIONS, scoreAttempt } from "../exams.js";
@@ -35,7 +36,7 @@ function examCard(id, exam, paint) {
     h("h2", {}, exam.name),
     h("ul", { class: "plain" }, exam.sections.map((section) => h("li", {}, `${section.name}: ${section.questions} questions, ${section.minutes} min${section.adaptive ? " · adaptive" : ""}${section.optional ? " · optional" : ""}`))),
     exam.official ? h("a", { href: exam.official, target: "_blank", rel: "noreferrer" }, exam.officialLabel || "Official practice") : null,
-    h("button", { type: "button", class: "btn gold", onClick: () => startExam(id, exam, paint) }, "Start a full practice"),
+    h("button", { type: "button", class: "btn gold", onClick: () => startExam(id, exam, paint) }, ["Start a full practice", newTag("practice-mode")]),
   ]);
 }
 
@@ -102,11 +103,13 @@ function examOverlay() {
         const practice = h("input", { type: "checkbox", "data-testid": "toggle-practice" });
         const calc = h("input", { type: "checkbox", "data-testid": "toggle-calc", checked: hasMath });
         const row = (box, title, sub) => h("label", { class: "card", style: "display:flex;gap:12px;align-items:flex-start;padding:12px;cursor:pointer" }, [box, h("span", {}, [h("strong", {}, title), h("br"), h("span", { class: "hint" }, sub)])]);
+        practice.addEventListener("change", () => markSeen("practice-mode"));
+        calc.addEventListener("change", () => markSeen("calculator"));
         practice.style.cssText = calc.style.cssText = "width:22px;height:22px;flex:none;margin-top:2px";
         panel.replaceChildren(h("div", { class: "stack" }, [
           h("h2", {}, `${examDef.name} setup`),
-          row(practice, "Show answers after each question", "Practice mode: see right or wrong and a short explanation after every question. Leave off for a real-test run."),
-          hasMath ? row(calc, "Calculator", "Adds a scientific and graphing calculator button on math sections.") : null,
+          row(practice, ["Show answers after each question", newTag("practice-mode")], "Practice mode: see right or wrong and a short explanation after every question. Leave off for a real-test run."),
+          hasMath ? row(calc, ["Calculator", newTag("calculator")], "Adds a scientific and graphing calculator button on math sections.") : null,
           h("p", { class: "hint" }, "Academic honesty: use ARAHA only for practice, never during a real exam or graded work."),
           h("button", { type: "button", class: "btn gold", "data-testid": "exam-begin", onClick: () => resolve({ practice: practice.checked, calculator: hasMath && calc.checked }) }, "Begin test"),
           h("button", { type: "button", class: "btn ghost", onClick: () => { api.close(); resolve(null); } }, "Cancel"),
