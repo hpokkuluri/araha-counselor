@@ -12,6 +12,10 @@ export function bindKeyboardInset(win = globalThis, doc = globalThis.document) {
       ? keyboardInset(win.innerHeight, viewport.height, viewport.offsetTop)
       : 0;
     doc.documentElement.style.setProperty("--kb", `${inset}px`);
+    if (viewport) {
+      doc.documentElement.style.setProperty("--vvh", `${Math.round(viewport.height)}px`);
+      doc.documentElement.style.setProperty("--vvtop", `${Math.round(viewport.offsetTop || 0)}px`);
+    }
   };
   apply();
   win.visualViewport?.addEventListener("resize", apply);

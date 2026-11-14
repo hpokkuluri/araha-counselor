@@ -88,7 +88,9 @@ export function mountThread(parent, spec) {
         threadKey: spec.key || "chat",
         onDelta: (value) => {
           if (mine !== generation) return;
+          const near = log.scrollHeight - log.scrollTop - log.clientHeight < 120;
           pending.textContent = value;
+          if (near) log.scrollTop = log.scrollHeight;
         },
       });
       if (mine !== generation) return;
@@ -118,6 +120,17 @@ export function mountThread(parent, spec) {
   const draft = spec.draft || "";
   if (draft) box.value = draft;
 
+  document.body.classList.add("thread-mode");
+  window.addEventListener("hashchange", () => document.body.classList.remove("thread-mode", "kb-open"), { once: true });
+  const toBottom = () => { log.scrollTop = log.scrollHeight; };
+  box.addEventListener("focus", () => {
+    document.body.classList.add("kb-open");
+    window.scrollTo(0, 0);
+    setTimeout(toBottom, 50);
+    setTimeout(toBottom, 350);
+  });
+  box.addEventListener("blur", () => { setTimeout(() => { if (document.activeElement !== box) document.body.classList.remove("kb-open"); }, 100); });
+  window.visualViewport?.addEventListener("resize", () => { if (document.activeElement === box) toBottom(); });
   parent.append(h("div", { class: "thread" }, [
     spec.banner || null,
     log,
