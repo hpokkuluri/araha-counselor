@@ -88,7 +88,7 @@ function model() {
   return getFirebaseApp().then(async ({ app }) => {
     const { getAI, getGenerativeModel, GoogleAIBackend } = await import("firebase/ai");
     const ai = getAI(app, { backend: new GoogleAIBackend() });
-    return getGenerativeModel(ai, { model: GEMINI_MODEL });
+    return getGenerativeModel(ai, { model: GEMINI_MODEL }, { timeout: 60000 });
   });
 }
 

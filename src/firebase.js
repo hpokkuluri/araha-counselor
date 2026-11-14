@@ -13,7 +13,7 @@ export const appCheckSiteKey = "";
 // Public VAPID key for web push. Leave empty until Cloud Messaging is configured.
 export const fcmVapidKey = "";
 
-export const GEMINI_MODEL = "gemini-3.8-flash";
+export const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 let appPromise;
 
