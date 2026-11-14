@@ -17,6 +17,7 @@ import { mountSettings } from "./views/settings.js";
 import { mountModel } from "./views/model.js";
 import { mountTests } from "./views/tests.js";
 import { mountApplication } from "./views/application.js";
+import { mountCollegePlan } from "./views/collegeplan.js";
 
 let current = null;
 let seq = 0;
@@ -61,6 +62,7 @@ function draw(root) {
     "/model": "On-device AI",
     "/tests": "Test prep",
     "/application": "My application",
+    "/college-plan": "College plan",
   };
   const screen = titles[route.path];
   document.title = !screen || screen === "Counselor" ? "ARAHA Counselor" : `${screen} · ARAHA Counselor`;
@@ -83,6 +85,7 @@ function draw(root) {
     "/model": mountModel,
     "/tests": mountTests,
     "/application": mountApplication,
+    "/college-plan": mountCollegePlan,
   };
   const mount = pages[route.path] || mountHome;
   return mount(root);
