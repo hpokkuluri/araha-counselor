@@ -14,6 +14,7 @@ export const appCheckSiteKey = "";
 export const fcmVapidKey = "";
 
 export const GEMINI_MODEL = "gemini-3.5-flash-lite";
+export const GEMINI_FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.8-flash"];
 
 let appPromise;
 
