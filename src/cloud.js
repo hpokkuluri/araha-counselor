@@ -1,6 +1,8 @@
 import { emptyData, normalizeData } from "./data.js";
 import { TONE, profileBlock } from "./prompts.js";
-import { GEMINI_MODEL, fcmVapidKey, getFirebaseApp } from "./firebase.js";
+import { GEMINI_FALLBACK_MODELS, GEMINI_MODEL, fcmVapidKey, getFirebaseApp } from "./firebase.js";
+
+export const FRIENDLY_BUSY = "Google's AI is busy right now. Please try again in a minute.";
 
 const ENCOURAGE = TONE;
 
@@ -84,16 +86,55 @@ export async function saveCloudData(uid, data, extra = {}) {
   await setDoc(doc(db, "users", uid), payload, { merge: true });
 }
 
-function model() {
+export function isRetryable(error) {
+  const text = `${error?.status || ""} ${error?.code || ""} ${error?.message || error || ""}`.toLowerCase();
+  return /\b(429|500|503)\b|high demand|overloaded|quota|resource.?exhaust|unavailable|too many requests|rate.?limit|network|failed to fetch|fetch failed|timeout|deadline|econnreset|err_network/.test(text);
+}
+
+export function retryDelay(attempt, error) {
+  const jitter = Math.floor(Math.random() * 500);
+  if (/429|quota|too many requests|rate.?limit/.test(String(error?.message || error || "").toLowerCase() + String(error?.status || ""))) {
+    return Math.min(20000, 10000 + attempt * 5000) + jitter;
+  }
+  return Math.min(15000, 1000 * 2 ** attempt) + jitter;
+}
+
+function model(name = GEMINI_MODEL) {
   return getFirebaseApp().then(async ({ app }) => {
     const { getAI, getGenerativeModel, GoogleAIBackend } = await import("firebase/ai");
     const ai = getAI(app, { backend: new GoogleAIBackend() });
-    return getGenerativeModel(ai, { model: GEMINI_MODEL }, { timeout: 60000 });
+    return getGenerativeModel(ai, { model: name }, { timeout: 60000 });
   });
 }
 
-export async function geminiText({ system, messages, data, onDelta, shouldStop }) {
-  const generative = await model();
+export async function withGeminiRetry(run, { onRetry, shouldStop, wait } = {}) {
+  const models = [GEMINI_MODEL, GEMINI_MODEL, ...(GEMINI_FALLBACK_MODELS || []).filter((name) => name && name !== GEMINI_MODEL)];
+  while (models.length < 5) models.push(models.at(-1) || GEMINI_MODEL);
+  let last;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (shouldStop?.()) {
+      const stop = new Error("cancelled");
+      stop.cause = last;
+      throw stop;
+    }
+    try {
+      return await run(models[attempt]);
+    } catch (error) {
+      last = error;
+      if (!isRetryable(error) || attempt === 4) break;
+      const ms = retryDelay(attempt, error);
+      onRetry?.({ attempt: attempt + 1, wait: ms, model: models[attempt], error });
+      await (wait ? wait(ms) : new Promise((resolve) => setTimeout(resolve, ms)));
+    }
+  }
+  const busy = isRetryable(last);
+  const err = new Error(busy ? FRIENDLY_BUSY : String(last?.message || last || "The request failed.").slice(0, 160));
+  err.cause = last;
+  err.busy = busy;
+  throw err;
+}
+
+export async function geminiText({ system, messages, data, onDelta, shouldStop, onRetry }) {
   const history = (messages || []).map((item) => `${item.role === "assistant" ? "Counselor" : "Student"}: ${item.content}`).join("\n");
   const prompt = [
     system || "You are ARAHA, a high school counselor.",
@@ -102,28 +143,33 @@ export async function geminiText({ system, messages, data, onDelta, shouldStop }
     profileBlock(data || { profile: {}, plan: { 9: [], 10: [], 11: [], 12: [] }, colleges: [], careers: [], scholarships: [] }),
     history ? `Conversation:\n${history}` : "",
   ].filter(Boolean).join("\n\n");
-  const result = await generative.generateContentStream(prompt);
-  let text = "";
-  for await (const chunk of result.stream) {
-    if (shouldStop?.()) return text.trim();
-    const piece = chunk.text?.() || "";
-    if (!piece) continue;
-    text += piece;
-    onDelta?.(text);
-  }
-  return text.trim();
+  return withGeminiRetry(async (name) => {
+    const generative = await model(name);
+    const result = await generative.generateContentStream(prompt);
+    let text = "";
+    for await (const chunk of result.stream) {
+      if (shouldStop?.()) return text.trim();
+      const piece = chunk.text?.() || "";
+      if (!piece) continue;
+      text += piece;
+      onDelta?.(text);
+    }
+    return text.trim();
+  }, { onRetry, shouldStop });
 }
 
-export async function geminiImage({ system, prompt, file, data }) {
-  const generative = await model();
+export async function geminiImage({ system, prompt, file, data, onRetry, shouldStop }) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  const result = await generative.generateContent([
-    { text: `${system}\n\n${String(system || "").includes(TONE) ? "" : ENCOURAGE}\n\nStudent profile:\n${profileBlock(data)}\n\n${prompt}` },
-    { inlineData: { mimeType: file.type || "image/jpeg", data: btoa(binary) } },
-  ]);
-  return result.response.text();
+  return withGeminiRetry(async (name) => {
+    const generative = await model(name);
+    const result = await generative.generateContent([
+      { text: `${system}\n\n${String(system || "").includes(TONE) ? "" : ENCOURAGE}\n\nStudent profile:\n${profileBlock(data)}\n\n${prompt}` },
+      { inlineData: { mimeType: file.type || "image/jpeg", data: btoa(binary) } },
+    ]);
+    return result.response.text();
+  }, { onRetry, shouldStop });
 }
 
 export async function publishLinkCode(uid, name) {

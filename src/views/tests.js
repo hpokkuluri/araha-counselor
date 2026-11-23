@@ -3,7 +3,7 @@ import { newTag, markSeen } from "../newtag.js";
 import { shell } from "../shell.js";
 import { session, update, usesCloud } from "../session.js";
 import { AP_EXAMS, EXAMS, SEED_QUESTIONS, scoreAttempt } from "../exams.js";
-import { geminiText } from "../cloud.js";
+import { FRIENDLY_BUSY, geminiText } from "../cloud.js";
 import { parseQuiz } from "../generated.js";
 import { uid } from "../data.js";
 import { openCalculator } from "../examcalc.js";
@@ -57,15 +57,24 @@ async function startExam(id, exam, paint) {
       const previous = index > 0 ? scoreAttempt(all, answers) : null;
       const harder = previous && previous.total && previous.correct / previous.total >= 0.7;
       stage.loading(`Building ${section.name}`, 0, section.questions);
-      const questions = await loadSection(exam, section, harder, (done) => stage.loading(`Building ${section.name}`, done, section.questions));
+      const questions = await loadSection(exam, section, harder, (done, note) => stage.loading(`Building ${section.name}`, done, section.questions, note), () => stage.cancelled);
       if (stage.cancelled) throw new Error("cancelled");
+      if (!questions.length) continue;
       const result = await runModule(section, questions, stage, opts);
       all.push(...questions);
       answers.push(...result);
     }
   } catch (error) {
+    if (error?.message === "cancelled") { stage.close(); return; }
+    if (!all.length) {
+      stage.close();
+      toast(FRIENDLY_BUSY);
+      return;
+    }
+  }
+  if (!all.length) {
     stage.close();
-    if (error?.message !== "cancelled") toast(`Could not build the test: ${String(error?.message || error).slice(0, 120)}. Please try again.`);
+    toast(FRIENDLY_BUSY);
     return;
   }
   const scored = scoreAttempt(all, answers);
@@ -89,10 +98,11 @@ function examOverlay() {
   const api = {
     cancelled: false,
     panel,
-    loading(label, done, total) {
+    loading(label, done, total, note) {
       panel.replaceChildren(
         h("h2", {}, `${label}…`),
         h("p", { class: "hint" }, `${done} of ${total} questions ready. This usually takes under a minute.`),
+        note ? h("p", { class: "hint", "data-testid": "retry-status" }, note) : null,
         h("button", { type: "button", class: "btn ghost", onClick: () => { api.cancelled = true; api.close(); } }, "Cancel"),
       );
     },
@@ -142,33 +152,28 @@ function examOverlay() {
   return api;
 }
 
-async function batchWithRetry(fn, tries = 3) {
-  let last;
-  for (let attempt = 0; attempt < tries; attempt += 1) {
-    try { return await fn(); } catch (error) { last = error; await new Promise((r) => setTimeout(r, 1500 * (attempt + 1))); }
-  }
-  throw last;
-}
-
-async function loadSection(exam, section, harder, onProgress) {
+async function loadSection(exam, section, harder, onProgress, cancelled) {
   const counts = [];
   for (let left = section.questions; left > 0; left -= 5) counts.push(Math.min(5, left));
   const batches = [];
   let done = 0;
   const one = async (count) => {
-    const raw = await batchWithRetry(() => geminiText({
+    const raw = await geminiText({
       system: `Write ${count} original ${section.kind} questions in the style of ${exam.name}. ${harder ? "Make this second module harder." : "Make this module a fair opening set."} Do not copy official items. Use exactly:\nQ: question\nA: choice\nB: choice\nC: choice\nD: choice\nAnswer: B\nWhy: one or two short sentences explaining why the correct answer is right\n---`,
       messages: [{ role: "user", content: `Section: ${section.name}. Topic label to repeat in Why is fine. No hints inside the question.` }],
       data: session.data,
-    }));
+      shouldStop: cancelled,
+      onRetry: () => onProgress?.(Math.min(done, section.questions), "Google's AI is busy, retrying…"),
+    });
     const parsed = parseQuiz(raw).slice(0, count).map((item) => ({ ...item, topic: section.kind }));
     batches.push(...parsed);
     done += parsed.length;
     onProgress?.(Math.min(done, section.questions));
   };
-  const queue = [...counts];
-  const workers = Array.from({ length: 3 }, async () => { while (queue.length) await one(queue.shift()); });
-  await Promise.all(workers);
+  for (const count of counts) {
+    if (cancelled?.()) break;
+    try { await one(count); } catch { /* keep any batches already built */ }
+  }
   if (!batches.length) {
     return SEED_QUESTIONS.filter((item) => item.kind === section.kind).slice(0, 2).map((item) => ({ ...item, topic: section.kind }));
   }
